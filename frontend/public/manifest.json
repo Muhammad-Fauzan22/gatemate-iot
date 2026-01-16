@@ -1,0 +1,29 @@
+{
+    "name": "GATEMATE",
+    "short_name": "GATEMATE",
+    "description": "Smart Gate Control System for Industrial & Home Access",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#141e15",
+    "theme_color": "#4bbe4f",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "orientation": "portrait",
+    "categories": [
+        "utilities",
+        "productivity"
+    ],
+    "lang": "en"
+}

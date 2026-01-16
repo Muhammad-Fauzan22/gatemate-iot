@@ -1,0 +1,239 @@
+// =============================================================================
+// GATEMATE Backend - Prisma Database Schema
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// User & Authentication
+// =============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  avatar        String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  sessions      Session[]
+  devices       UserDevice[]
+  commands      Command[]
+  schedules     Schedule[]
+  accessLogs    AccessLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  userAgent    String?
+  ipAddress    String?
+
+  @@map("sessions")
+}
+
+enum Role {
+  ADMIN
+  USER
+  GUEST
+}
+
+// =============================================================================
+// Devices
+// =============================================================================
+
+model Device {
+  id              String    @id @default(cuid())
+  deviceId        String    @unique  // Hardware device ID
+  name            String
+  type            DeviceType @default(GATE)
+  firmwareVersion String?
+  macAddress      String?
+  ipAddress       String?
+  isOnline        Boolean   @default(false)
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Configuration
+  config          Json?
+  
+  // Relations
+  users           UserDevice[]
+  commands        Command[]
+  schedules       Schedule[]
+  sensorData      SensorData[]
+  accessLogs      AccessLog[]
+
+  @@map("devices")
+}
+
+model UserDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  role      DeviceRole @default(OPERATOR)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@map("user_devices")
+}
+
+enum DeviceType {
+  GATE
+  BARRIER
+  DOOR
+  SHUTTER
+}
+
+enum DeviceRole {
+  OWNER
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+// =============================================================================
+// Gate Operations
+// =============================================================================
+
+model Command {
+  id          String        @id @default(cuid())
+  deviceId    String
+  device      Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type        CommandType
+  payload     Json?
+  status      CommandStatus @default(PENDING)
+  result      Json?
+  createdAt   DateTime      @default(now())
+  executedAt  DateTime?
+  completedAt DateTime?
+
+  @@index([deviceId, createdAt])
+  @@map("commands")
+}
+
+enum CommandType {
+  OPEN
+  CLOSE
+  STOP
+  PARTIAL
+  STATUS
+  CONFIG
+}
+
+enum CommandStatus {
+  PENDING
+  EXECUTING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+// =============================================================================
+// Schedules
+// =============================================================================
+
+model Schedule {
+  id          String       @id @default(cuid())
+  deviceId    String
+  device      Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String?
+  action      CommandType
+  time        String       // HH:MM format
+  recurrence  String       // Cron expression or preset
+  enabled     Boolean      @default(true)
+  payload     Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+
+  @@index([deviceId, enabled])
+  @@map("schedules")
+}
+
+// =============================================================================
+// Sensor Data
+// =============================================================================
+
+model SensorData {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  current     Float?
+  voltage     Float?
+  temperature Float?
+  wifiSignal  Int?
+  percentage  Int?
+  gateState   String?
+  timestamp   DateTime @default(now())
+
+  @@index([deviceId, timestamp])
+  @@map("sensor_data")
+}
+
+// =============================================================================
+// Access Logs
+// =============================================================================
+
+model AccessLog {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+  @@map("access_logs")
+}
+
+// =============================================================================
+// Guest Passes
+// =============================================================================
+
+model GuestPass {
+  id          String   @id @default(cuid())
+  deviceId    String
+  createdBy   String
+  name        String?
+  permissions String[] // ['open', 'close', 'view']
+  maxUses     Int      @default(1)
+  usedCount   Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  revoked     Boolean  @default(false)
+
+  @@index([deviceId, expiresAt])
+  @@map("guest_passes")
+}
+
