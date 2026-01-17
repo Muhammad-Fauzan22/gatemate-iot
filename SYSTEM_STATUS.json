@@ -1,0 +1,324 @@
+{
+    "project": "GATEMATE IoT System",
+    "version": "2.0.0",
+    "last_updated": "2026-01-17T08:08:00+07:00",
+    "overall_progress": 62,
+    "security_score": 45,
+    "code_quality_score": 68,
+    "test_coverage": 15,
+    "documentation_score": 70,
+    "production_ready": false,
+    "estimated_days_to_launch": 21,
+    "components": {
+        "firmware": {
+            "name": "ESP32 Firmware",
+            "progress": 85,
+            "status": "stable",
+            "files": 3,
+            "loc": 2800,
+            "issues": {
+                "total": 2,
+                "critical": 0,
+                "high": 1,
+                "medium": 1,
+                "low": 0
+            },
+            "features": {
+                "wifi_manager": true,
+                "web_server": true,
+                "ota_update": true,
+                "gpio_control": true,
+                "motor_control": true,
+                "limit_switches": true,
+                "http_api": true,
+                "mqtt_client": false,
+                "error_logging": false
+            }
+        },
+        "backend": {
+            "name": "Node.js API",
+            "progress": 65,
+            "status": "in_progress",
+            "files": 24,
+            "loc": 4500,
+            "issues": {
+                "total": 12,
+                "critical": 3,
+                "high": 4,
+                "medium": 3,
+                "low": 2
+            },
+            "modules": {
+                "auth": {
+                    "progress": 70,
+                    "tests": 5
+                },
+                "devices": {
+                    "progress": 85,
+                    "tests": 2
+                },
+                "commands": {
+                    "progress": 80,
+                    "tests": 0
+                },
+                "schedules": {
+                    "progress": 60,
+                    "tests": 0
+                },
+                "mqtt": {
+                    "progress": 50,
+                    "tests": 0
+                },
+                "websocket": {
+                    "progress": 55,
+                    "tests": 0
+                },
+                "pairing": {
+                    "progress": 75,
+                    "tests": 0
+                },
+                "guest": {
+                    "progress": 40,
+                    "tests": 0
+                },
+                "diagnostics": {
+                    "progress": 50,
+                    "tests": 0
+                },
+                "users": {
+                    "progress": 45,
+                    "tests": 0
+                },
+                "notifications": {
+                    "progress": 0,
+                    "tests": 0
+                }
+            }
+        },
+        "frontend": {
+            "name": "React Web App",
+            "progress": 55,
+            "status": "in_progress",
+            "files": 18,
+            "loc": 3200,
+            "issues": {
+                "total": 8,
+                "critical": 1,
+                "high": 3,
+                "medium": 2,
+                "low": 2
+            },
+            "pages": {
+                "login": true,
+                "register": true,
+                "dashboard": "partial",
+                "devices": "partial",
+                "device_control": "partial",
+                "schedules": false,
+                "cctv": false,
+                "logs": "partial",
+                "settings": "partial",
+                "profile": false
+            }
+        },
+        "mobile": {
+            "name": "React Native App",
+            "progress": 60,
+            "status": "in_progress",
+            "files": 25,
+            "loc": 5800,
+            "issues": {
+                "total": 10,
+                "critical": 2,
+                "high": 3,
+                "medium": 3,
+                "low": 2
+            },
+            "screens": {
+                "dashboard": true,
+                "gate_control": true,
+                "schedule": true,
+                "settings": true,
+                "logs": true,
+                "cctv": true,
+                "login": "demo",
+                "register": "demo",
+                "onboarding": "partial",
+                "device_list": "partial",
+                "add_device": "partial",
+                "geofence": "partial",
+                "backup": "partial",
+                "notifications": false,
+                "profile": false
+            }
+        },
+        "database": {
+            "name": "PostgreSQL + Firebase",
+            "progress": 50,
+            "status": "partial",
+            "issues": {
+                "total": 4,
+                "critical": 0,
+                "high": 2,
+                "medium": 2,
+                "low": 0
+            }
+        },
+        "devops": {
+            "name": "Docker + CI/CD",
+            "progress": 40,
+            "status": "partial",
+            "issues": {
+                "total": 6,
+                "critical": 0,
+                "high": 2,
+                "medium": 2,
+                "low": 2
+            }
+        }
+    },
+    "security": {
+        "score": 45,
+        "status": "needs_work",
+        "findings": {
+            "critical": 2,
+            "high": 4,
+            "medium": 5,
+            "low": 3
+        },
+        "checks": {
+            "jwt_refresh": false,
+            "input_validation": false,
+            "rate_limiting": false,
+            "sql_injection": true,
+            "xss_protection": false,
+            "csrf_protection": false,
+            "https_tls": false,
+            "secrets_management": false
+        }
+    },
+    "testing": {
+        "coverage": 15,
+        "unit_tests": 7,
+        "integration_tests": 2,
+        "e2e_tests": 0,
+        "passing": 9,
+        "failing": 0
+    },
+    "critical_path": [
+        {
+            "task": "Fix security vulnerabilities",
+            "priority": "P0",
+            "estimated_days": 3,
+            "owner": "Backend Team"
+        },
+        {
+            "task": "Complete authentication flow",
+            "priority": "P0",
+            "estimated_days": 2,
+            "owner": "Full Stack"
+        },
+        {
+            "task": "Implement real-time updates",
+            "priority": "P1",
+            "estimated_days": 4,
+            "owner": "Backend Team"
+        },
+        {
+            "task": "Setup CI/CD pipeline",
+            "priority": "P1",
+            "estimated_days": 2,
+            "owner": "DevOps"
+        },
+        {
+            "task": "Production deployment",
+            "priority": "P1",
+            "estimated_days": 3,
+            "owner": "DevOps"
+        }
+    ],
+    "milestones": {
+        "week_1": {
+            "name": "Security & Stability",
+            "target_date": "2026-01-24",
+            "status": "in_progress",
+            "tasks": [
+                {
+                    "name": "JWT refresh tokens",
+                    "done": false
+                },
+                {
+                    "name": "Input validation",
+                    "done": false
+                },
+                {
+                    "name": "Rate limiting",
+                    "done": false
+                },
+                {
+                    "name": "Error handling",
+                    "done": false
+                },
+                {
+                    "name": "Basic tests",
+                    "done": false
+                }
+            ]
+        },
+        "week_2": {
+            "name": "Core Features",
+            "target_date": "2026-01-31",
+            "status": "pending",
+            "tasks": [
+                {
+                    "name": "Google Sign-In",
+                    "done": false
+                },
+                {
+                    "name": "Real-time updates",
+                    "done": false
+                },
+                {
+                    "name": "Push notifications",
+                    "done": false
+                },
+                {
+                    "name": "Schedule execution",
+                    "done": false
+                },
+                {
+                    "name": "Guest access",
+                    "done": false
+                }
+            ]
+        },
+        "week_3": {
+            "name": "Production Prep",
+            "target_date": "2026-02-07",
+            "status": "pending",
+            "tasks": [
+                {
+                    "name": "CI/CD setup",
+                    "done": false
+                },
+                {
+                    "name": "Monitoring",
+                    "done": false
+                },
+                {
+                    "name": "SSL/TLS",
+                    "done": false
+                },
+                {
+                    "name": "API docs",
+                    "done": false
+                },
+                {
+                    "name": "Final QA",
+                    "done": false
+                }
+            ]
+        }
+    },
+    "next_review_date": "2026-01-24"
+}
