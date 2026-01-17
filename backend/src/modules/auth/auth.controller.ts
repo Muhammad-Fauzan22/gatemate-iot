@@ -72,7 +72,7 @@ export class AuthController {
                 return res.status(401).json({ error: 'Unauthorized' });
             }
 
-            const user = await authService.getProfile(req.user.id);
+            const user = await authService.getProfile(req.user.userId);
             res.json(user);
         } catch (error) {
             next(error);
@@ -86,7 +86,7 @@ export class AuthController {
             }
 
             const { name, avatar } = req.body;
-            const user = await authService.updateProfile(req.user.id, { name, avatar });
+            const user = await authService.updateProfile(req.user.userId, { name, avatar });
             res.json(user);
         } catch (error) {
             next(error);
@@ -105,7 +105,7 @@ export class AuthController {
                 return res.status(400).json({ error: 'Current and new password are required' });
             }
 
-            await authService.changePassword(req.user.id, currentPassword, newPassword);
+            await authService.changePassword(req.user.userId, currentPassword, newPassword);
             res.json({ message: 'Password changed successfully' });
         } catch (error) {
             next(error);

@@ -7,9 +7,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prismaMock, createMockUser, createMockSession } from '../setup';
 
-// Mock the auth service functions
-const mockGenerateTokenPair = jest.fn();
-const mockVerifyAccessToken = jest.fn();
+// Type helper for mocking Prisma methods
+type MockFunction = jest.Mock<any, any>;
 
 describe('AuthService', () => {
     beforeEach(() => {
@@ -31,9 +30,10 @@ describe('AuthService', () => {
                 password: hashedPassword,
             });
 
-            prismaMock.user.findUnique.mockResolvedValue(null);
-            prismaMock.user.create.mockResolvedValue(mockUser);
-            prismaMock.session.create.mockResolvedValue(createMockSession());
+            // Use type assertion for mock methods
+            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(null);
+            (prismaMock.user.create as unknown as MockFunction).mockResolvedValue(mockUser);
+            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
 
             // Verify password was hashed
             const isPasswordHashed = await bcrypt.compare(input.password, hashedPassword);
@@ -43,7 +43,7 @@ describe('AuthService', () => {
         it('should reject registration if email already exists', async () => {
             const existingUser = createMockUser({ email: 'existing@example.com' });
 
-            prismaMock.user.findUnique.mockResolvedValue(existingUser);
+            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(existingUser);
 
             // Should throw ConflictError
             expect(prismaMock.user.findUnique).toBeDefined();
@@ -75,9 +75,9 @@ describe('AuthService', () => {
             const hashedPassword = await bcrypt.hash(password, 12);
             const mockUser = createMockUser({ password: hashedPassword });
 
-            prismaMock.user.findUnique.mockResolvedValue(mockUser);
-            prismaMock.session.create.mockResolvedValue(createMockSession());
-            prismaMock.user.update.mockResolvedValue(mockUser);
+            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(mockUser);
+            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
+            (prismaMock.user.update as unknown as MockFunction).mockResolvedValue(mockUser);
 
             const isPasswordValid = await bcrypt.compare(password, hashedPassword);
             expect(isPasswordValid).toBe(true);
@@ -87,14 +87,14 @@ describe('AuthService', () => {
             const hashedPassword = await bcrypt.hash('CorrectPassword123!', 12);
             const mockUser = createMockUser({ password: hashedPassword });
 
-            prismaMock.user.findUnique.mockResolvedValue(mockUser);
+            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(mockUser);
 
             const isPasswordValid = await bcrypt.compare('WrongPassword123!', hashedPassword);
             expect(isPasswordValid).toBe(false);
         });
 
         it('should reject non-existent user', async () => {
-            prismaMock.user.findUnique.mockResolvedValue(null);
+            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(null);
 
             // Should throw AuthenticationError
             const result = await prismaMock.user.findUnique({ where: { email: 'nonexistent@example.com' } });
@@ -138,7 +138,7 @@ describe('AuthService', () => {
 
     describe('logout', () => {
         it('should delete session on logout', async () => {
-            prismaMock.session.delete.mockResolvedValue(createMockSession());
+            (prismaMock.session.delete as unknown as MockFunction).mockResolvedValue(createMockSession());
 
             await prismaMock.session.delete({ where: { token: 'mock-token' } });
 
@@ -150,9 +150,9 @@ describe('AuthService', () => {
         it('should invalidate old refresh token after use', async () => {
             const oldSession = createMockSession();
 
-            prismaMock.session.findUnique.mockResolvedValue(oldSession);
-            prismaMock.session.delete.mockResolvedValue(oldSession);
-            prismaMock.session.create.mockResolvedValue(createMockSession());
+            (prismaMock.session.findUnique as unknown as MockFunction).mockResolvedValue(oldSession);
+            (prismaMock.session.delete as unknown as MockFunction).mockResolvedValue(oldSession);
+            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
 
             // Simulate using refresh token
             await prismaMock.session.delete({ where: { refreshToken: oldSession.refreshToken } });

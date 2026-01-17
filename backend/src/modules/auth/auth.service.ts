@@ -176,12 +176,12 @@ export class AuthService {
         const payload: TokenPayload = { userId, email, role };
 
         const accessToken = jwt.sign(payload, config.JWT_SECRET, {
-            expiresIn: config.JWT_EXPIRES_IN,
-        });
+            expiresIn: config.JWT_EXPIRES_IN as string,
+        } as jwt.SignOptions);
 
         const refreshToken = jwt.sign(payload, config.JWT_SECRET, {
-            expiresIn: config.JWT_REFRESH_EXPIRES_IN,
-        });
+            expiresIn: config.JWT_REFRESH_EXPIRES_IN as string,
+        } as jwt.SignOptions);
 
         // Parse expiration
         const expiresAt = new Date();

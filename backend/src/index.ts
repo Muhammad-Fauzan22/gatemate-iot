@@ -153,7 +153,7 @@ const startServer = async () => {
 
         // Setup MQTT
         if (config.MQTT_BROKER_URL) {
-            await setupMQTT();
+            await setupMQTT(io);
             logger.info('✓ MQTT connected');
         }
 
