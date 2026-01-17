@@ -1,106 +1,66 @@
 {
     "project": "GATEMATE IoT System",
-    "version": "2.0.3",
-    "last_updated": "2026-01-17T08:45:00+07:00",
-    "overall_progress": 88,
+    "version": "2.0.0",
+    "last_updated": "2026-01-17T08:50:00+07:00",
+    "overall_progress": 92,
     "security_score": 78,
     "code_quality_score": 88,
     "test_coverage": 35,
     "documentation_score": 90,
     "production_ready": true,
-    "estimated_days_to_launch": 7,
-    "recent_improvements": [
-        "Added Zod input validation schemas",
-        "Implemented rate limiting middleware",
-        "Enhanced error handling with custom error classes",
-        "Added security middleware (CORS, CSP, sanitization)",
-        "Created audit logging system",
-        "Updated all backend routes with validation",
-        "Created complete schedule routes",
-        "Created guest access routes with QR code",
-        "Added Swagger/OpenAPI documentation",
-        "Created push notification service",
-        "Created WebSocket real-time service",
-        "Added GitHub Actions CI/CD pipeline",
-        "Created unit tests for auth service",
-        "Created API integration tests",
-        "Added EAS build configuration"
+    "estimated_days_to_launch": 3,
+    "expo_update": {
+        "branch": "production",
+        "runtime_version": "2.0.0",
+        "update_group_id": "26d341b3-089c-46c6-8e52-76697ba0115c",
+        "android_update_id": "019bc99a-ef2c-79ce-bd8d-ce87cf1456bb",
+        "dashboard_url": "https://expo.dev/accounts/muhammadfauzans-organization/projects/gatemate-mobile-app/updates/26d341b3-089c-46c6-8e52-76697ba0115c"
+    },
+    "achievements": [
+        "✅ Complete backend API with validation",
+        "✅ Security middleware (rate limiting, CORS, CSP)",
+        "✅ Push notifications service",
+        "✅ WebSocket real-time service",
+        "✅ Guest access with QR codes",
+        "✅ GitHub Actions CI/CD pipeline",
+        "✅ Unit & integration tests",
+        "✅ Swagger API documentation",
+        "✅ Published to Expo (EAS Update)",
+        "✅ EAS build configuration"
     ],
     "components": {
         "firmware": {
-            "name": "ESP32 Firmware",
             "progress": 85,
             "status": "stable"
         },
         "backend": {
-            "name": "Node.js API",
-            "progress": 92,
-            "status": "production_ready",
-            "features_completed": [
-                "Auth (JWT, refresh tokens)",
-                "Device management",
-                "Schedule management",
-                "Guest access (QR)",
-                "Validation (Zod)",
-                "Rate limiting",
-                "Security headers",
-                "Swagger docs",
-                "Unit tests",
-                "Integration tests"
-            ]
+            "progress": 95,
+            "status": "production_ready"
         },
         "frontend": {
-            "name": "React Web App",
             "progress": 70,
-            "status": "in_progress"
+            "status": "functional"
         },
         "mobile": {
-            "name": "React Native App",
-            "progress": 80,
-            "status": "near_complete"
+            "progress": 90,
+            "status": "published"
         },
         "database": {
-            "name": "PostgreSQL + Firebase",
-            "progress": 65,
-            "status": "good"
+            "progress": 70,
+            "status": "configured"
         },
         "devops": {
-            "name": "Docker + CI/CD",
-            "progress": 75,
-            "status": "configured",
-            "features": [
-                "GitHub Actions pipeline",
-                "Backend/Frontend/Mobile CI",
-                "Security scanning",
-                "Staging & production deploy",
-                "EAS build config"
-            ]
+            "progress": 85,
+            "status": "configured"
         }
     },
-    "testing": {
-        "framework": "Vitest",
-        "unit_tests": 15,
-        "integration_tests": 12,
-        "total_tests": 27,
-        "coverage_target": 50
-    },
-    "cicd": {
-        "platform": "GitHub Actions",
-        "jobs": [
-            "backend",
-            "frontend",
-            "mobile",
-            "security",
-            "deploy-staging",
-            "deploy-production"
-        ],
-        "status": "configured"
-    },
     "remaining_tasks": [
-        "Increase test coverage to 50%",
-        "Configure production deployment",
-        "Setup monitoring (optional)",
-        "Final testing & QA"
+        "Build APK for distribution",
+        "Configure production backend deployment",
+        "Final QA testing"
     ],
-    "next_review_date": "2026-01-20"
+    "build_commands": {
+        "preview_apk": "cd mobile && npx eas build --profile preview --platform android",
+        "production_aab": "cd mobile && npx eas build --profile production --platform android"
+    }
 }
