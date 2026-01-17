@@ -5,65 +5,65 @@
 import { z } from 'zod';
 
 // =============================================================================
-// Common Schemas
-// =============================================================================
-
-export const paginationSchema = z.object({
-    page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(100).default(20),
-    sortBy: z.string().optional(),
-    sortOrder: z.enum(['asc', 'desc']).default('desc'),
-});
-
-export const idParamSchema = z.object({
-    id: z.string().min(1, 'ID is required'),
-});
-
-// =============================================================================
 // Auth Schemas
 // =============================================================================
 
 export const registerSchema = z.object({
     email: z.string()
-        .min(1, 'Email is required')
-        .email('Invalid email format')
-        .max(255, 'Email too long'),
+        .email('Email tidak valid')
+        .min(5, 'Email minimal 5 karakter')
+        .max(100, 'Email maksimal 100 karakter')
+        .transform(val => val.toLowerCase().trim()),
+
     password: z.string()
-        .min(8, 'Password must be at least 8 characters')
-        .max(72, 'Password too long')
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number'),
+        .min(8, 'Password minimal 8 karakter')
+        .max(100, 'Password maksimal 100 karakter')
+        .regex(/[A-Z]/, 'Password harus mengandung huruf besar')
+        .regex(/[a-z]/, 'Password harus mengandung huruf kecil')
+        .regex(/[0-9]/, 'Password harus mengandung angka'),
+
     name: z.string()
-        .min(2, 'Name must be at least 2 characters')
-        .max(100, 'Name too long'),
+        .min(2, 'Nama minimal 2 karakter')
+        .max(50, 'Nama maksimal 50 karakter')
+        .trim(),
 });
 
 export const loginSchema = z.object({
     email: z.string()
-        .min(1, 'Email is required')
-        .email('Invalid email format'),
+        .email('Email tidak valid')
+        .transform(val => val.toLowerCase().trim()),
+
     password: z.string()
-        .min(1, 'Password is required'),
+        .min(1, 'Password tidak boleh kosong'),
 });
 
 export const refreshTokenSchema = z.object({
-    refreshToken: z.string().min(1, 'Refresh token is required'),
-});
-
-export const updateProfileSchema = z.object({
-    name: z.string().min(2).max(100).optional(),
-    avatar: z.string().url().optional(),
+    refreshToken: z.string()
+        .min(1, 'Refresh token tidak boleh kosong'),
 });
 
 export const changePasswordSchema = z.object({
-    currentPassword: z.string().min(1, 'Current password is required'),
+    currentPassword: z.string()
+        .min(1, 'Password saat ini tidak boleh kosong'),
+
     newPassword: z.string()
-        .min(8, 'Password must be at least 8 characters')
-        .max(72, 'Password too long')
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number'),
+        .min(8, 'Password baru minimal 8 karakter')
+        .max(100, 'Password maksimal 100 karakter')
+        .regex(/[A-Z]/, 'Password harus mengandung huruf besar')
+        .regex(/[a-z]/, 'Password harus mengandung huruf kecil')
+        .regex(/[0-9]/, 'Password harus mengandung angka'),
+});
+
+export const updateProfileSchema = z.object({
+    name: z.string()
+        .min(2, 'Nama minimal 2 karakter')
+        .max(50, 'Nama maksimal 50 karakter')
+        .trim()
+        .optional(),
+
+    avatar: z.string()
+        .url('URL avatar tidak valid')
+        .optional(),
 });
 
 // =============================================================================
@@ -71,33 +71,48 @@ export const changePasswordSchema = z.object({
 // =============================================================================
 
 export const createDeviceSchema = z.object({
-    deviceId: z.string()
-        .min(1, 'Device ID is required')
-        .max(50, 'Device ID too long')
-        .regex(/^[a-zA-Z0-9-_]+$/, 'Device ID can only contain letters, numbers, hyphens, and underscores'),
     name: z.string()
-        .min(1, 'Name is required')
-        .max(100, 'Name too long'),
-    type: z.enum(['GATE', 'BARRIER', 'DOOR', 'SHUTTER']).default('GATE'),
+        .min(2, 'Nama perangkat minimal 2 karakter')
+        .max(50, 'Nama perangkat maksimal 50 karakter')
+        .trim(),
+
+    type: z.enum(['gate', 'garage', 'door'], {
+        errorMap: () => ({ message: 'Tipe harus gate, garage, atau door' }),
+    }),
+
+    ip: z.string()
+        .ip({ version: 'v4', message: 'IP address tidak valid' })
+        .optional(),
+
+    macAddress: z.string()
+        .regex(/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, 'MAC address tidak valid')
+        .optional(),
 });
 
 export const updateDeviceSchema = z.object({
-    name: z.string().min(1).max(100).optional(),
-    config: z.record(z.any()).optional(),
+    name: z.string()
+        .min(2, 'Nama perangkat minimal 2 karakter')
+        .max(50, 'Nama perangkat maksimal 50 karakter')
+        .trim()
+        .optional(),
+
+    status: z.enum(['online', 'offline']).optional(),
+
+    ip: z.string()
+        .ip({ version: 'v4', message: 'IP address tidak valid' })
+        .optional(),
 });
 
-// =============================================================================
-// Command Schemas
-// =============================================================================
+export const deviceCommandSchema = z.object({
+    command: z.enum(['open', 'close', 'stop', 'toggle'], {
+        errorMap: () => ({ message: 'Command harus open, close, stop, atau toggle' }),
+    }),
 
-export const deviceIdParamSchema = z.object({
-    deviceId: z.string().min(1, 'Device ID is required'),
-});
-
-export const partialOpenSchema = z.object({
-    percentage: z.coerce.number()
-        .min(0, 'Percentage must be between 0 and 100')
-        .max(100, 'Percentage must be between 0 and 100'),
+    duration: z.number()
+        .int('Durasi harus bilangan bulat')
+        .min(0, 'Durasi tidak boleh negatif')
+        .max(60000, 'Durasi maksimal 60 detik')
+        .optional(),
 });
 
 // =============================================================================
@@ -105,133 +120,122 @@ export const partialOpenSchema = z.object({
 // =============================================================================
 
 export const createScheduleSchema = z.object({
-    deviceId: z.string().min(1, 'Device ID is required'),
-    name: z.string().max(100).optional(),
-    action: z.enum(['OPEN', 'CLOSE', 'PARTIAL']),
+    name: z.string()
+        .min(2, 'Nama jadwal minimal 2 karakter')
+        .max(50, 'Nama jadwal maksimal 50 karakter')
+        .trim(),
+
+    deviceId: z.string()
+        .uuid('Device ID tidak valid'),
+
+    action: z.enum(['open', 'close'], {
+        errorMap: () => ({ message: 'Action harus open atau close' }),
+    }),
+
     time: z.string()
-        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:MM format'),
-    recurrence: z.string()
-        .min(1, 'Recurrence is required'),
-    payload: z.record(z.any()).optional(),
+        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Format waktu harus HH:MM'),
+
+    days: z.array(z.number().int().min(0).max(6))
+        .min(1, 'Pilih minimal satu hari')
+        .max(7, 'Maksimal 7 hari'),
+
+    enabled: z.boolean().default(true),
+
+    repeat: z.enum(['once', 'daily', 'weekly', 'custom']).default('weekly'),
 });
 
 export const updateScheduleSchema = z.object({
-    name: z.string().max(100).optional(),
-    action: z.enum(['OPEN', 'CLOSE', 'PARTIAL']).optional(),
-    time: z.string()
-        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:MM format')
+    name: z.string()
+        .min(2, 'Nama jadwal minimal 2 karakter')
+        .max(50, 'Nama jadwal maksimal 50 karakter')
+        .trim()
         .optional(),
-    recurrence: z.string().optional(),
+
+    action: z.enum(['open', 'close']).optional(),
+
+    time: z.string()
+        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Format waktu harus HH:MM')
+        .optional(),
+
+    days: z.array(z.number().int().min(0).max(6))
+        .min(1, 'Pilih minimal satu hari')
+        .max(7, 'Maksimal 7 hari')
+        .optional(),
+
     enabled: z.boolean().optional(),
-    payload: z.record(z.any()).optional(),
 });
 
 // =============================================================================
-// Guest Access Schemas
+// Guest Access Schema
 // =============================================================================
 
-export const createGuestPassSchema = z.object({
-    deviceId: z.string().min(1, 'Device ID is required'),
-    name: z.string().max(100).optional(),
-    duration: z.coerce.number()
-        .min(0.5, 'Duration must be at least 30 minutes')
-        .max(168, 'Duration cannot exceed 1 week'),
+export const guestAccessSchema = z.object({
+    deviceId: z.string()
+        .uuid('Device ID tidak valid'),
+
+    name: z.string()
+        .min(2, 'Nama tamu minimal 2 karakter')
+        .max(50, 'Nama tamu maksimal 50 karakter')
+        .trim(),
+
+    expiresAt: z.string()
+        .datetime('Format tanggal tidak valid')
+        .optional(),
+
+    maxUses: z.number()
+        .int('Maksimal penggunaan harus bilangan bulat')
+        .min(1, 'Minimal 1 kali penggunaan')
+        .max(100, 'Maksimal 100 kali penggunaan')
+        .default(1),
+
     permissions: z.array(z.enum(['open', 'close', 'view']))
-        .min(1, 'At least one permission is required'),
-    maxUses: z.coerce.number().min(1).max(100).default(1),
-});
-
-export const executeGuestCommandSchema = z.object({
-    command: z.enum(['open', 'close', 'stop']),
+        .min(1, 'Pilih minimal satu permission')
+        .default(['open']),
 });
 
 // =============================================================================
-// Pairing Schemas
+// Pagination Schema
 // =============================================================================
 
-export const pairingCodeSchema = z.object({
-    deviceId: z.string().min(1, 'Device ID is required'),
-    mac: z.string().optional(),
-});
+export const paginationSchema = z.object({
+    page: z.string()
+        .transform(val => parseInt(val, 10))
+        .pipe(z.number().int().min(1).default(1))
+        .optional(),
 
-export const pairByCodeSchema = z.object({
-    code: z.string()
-        .length(6, 'Pairing code must be 6 digits')
-        .regex(/^\d{6}$/, 'Pairing code must contain only numbers'),
-    name: z.string().max(100).optional(),
-});
+    limit: z.string()
+        .transform(val => parseInt(val, 10))
+        .pipe(z.number().int().min(1).max(100).default(20))
+        .optional(),
 
-export const pairByIpSchema = z.object({
-    ip: z.string()
-        .min(1, 'IP address is required')
-        .regex(/^(\d{1,3}\.){3}\d{1,3}$/, 'Invalid IP address format'),
-    name: z.string().max(100).optional(),
-});
+    sortBy: z.string()
+        .max(50)
+        .optional(),
 
-// =============================================================================
-// Invitation Schemas
-// =============================================================================
-
-export const inviteUserSchema = z.object({
-    deviceId: z.string().min(1, 'Device ID is required'),
-    email: z.string().email('Invalid email format'),
-    role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']).default('OPERATOR'),
-});
-
-export const updateUserRoleSchema = z.object({
-    role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']),
+    sortOrder: z.enum(['asc', 'desc'])
+        .default('desc')
+        .optional(),
 });
 
 // =============================================================================
-// Validation Middleware
+// ID Parameter Schema
 // =============================================================================
 
-import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+export const idParamSchema = z.object({
+    id: z.string()
+        .uuid('ID tidak valid'),
+});
 
-export const validate = (schema: AnyZodObject) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            await schema.parseAsync({
-                body: req.body,
-                query: req.query,
-                params: req.params,
-            });
-            next();
-        } catch (error) {
-            if (error instanceof ZodError) {
-                const errors: Record<string, string[]> = {};
+// =============================================================================
+// Type Exports
+// =============================================================================
 
-                error.errors.forEach((e) => {
-                    const path = e.path.slice(1).join('.') || 'general';
-                    if (!errors[path]) {
-                        errors[path] = [];
-                    }
-                    errors[path].push(e.message);
-                });
-
-                res.status(400).json({
-                    success: false,
-                    error: 'Validation failed',
-                    code: 'VALIDATION_ERROR',
-                    errors,
-                });
-            } else {
-                next(error);
-            }
-        }
-    };
-};
-
-// Wrapper schemas for route validation
-export const validateBody = <T extends z.ZodType>(schema: T) => {
-    return z.object({ body: schema });
-};
-
-export const validateParams = <T extends z.ZodType>(schema: T) => {
-    return z.object({ params: schema });
-};
-
-export const validateQuery = <T extends z.ZodType>(schema: T) => {
-    return z.object({ query: schema });
-};
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type CreateDeviceInput = z.infer<typeof createDeviceSchema>;
+export type UpdateDeviceInput = z.infer<typeof updateDeviceSchema>;
+export type DeviceCommandInput = z.infer<typeof deviceCommandSchema>;
+export type CreateScheduleInput = z.infer<typeof createScheduleSchema>;
+export type UpdateScheduleInput = z.infer<typeof updateScheduleSchema>;
+export type GuestAccessInput = z.infer<typeof guestAccessSchema>;
+export type PaginationInput = z.infer<typeof paginationSchema>;

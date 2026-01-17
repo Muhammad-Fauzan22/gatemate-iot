@@ -1,138 +1,170 @@
 // =============================================================================
-// GATEMATE Backend - Structured Logging (Winston)
+// GATEMATE Backend - Logger Middleware (Winston)
 // =============================================================================
 
-import winston from 'winston';
 import { Request, Response, NextFunction } from 'express';
-import { config } from '../config/env.js';
+import { v4 as uuidv4 } from 'uuid';
 
 // =============================================================================
-// Log Formats
+// Simple Console Logger (Production should use Winston)
 // =============================================================================
 
-const consoleFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.colorize(),
-    winston.format.printf(({ timestamp, level, message, ...meta }) => {
-        const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
-        return `[${timestamp}] ${level}: ${message} ${metaStr}`;
-    })
-);
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const jsonFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-);
+const LOG_LEVELS: Record<LogLevel, number> = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3,
+};
 
-// =============================================================================
-// Logger Instance
-// =============================================================================
+const currentLevel: LogLevel = (process.env.LOG_LEVEL as LogLevel) || 'info';
 
-export const logger = winston.createLogger({
-    level: config.NODE_ENV === 'development' ? 'debug' : 'info',
-    defaultMeta: { service: 'gatemate-api' },
-    transports: [
-        // Console output
-        new winston.transports.Console({
-            format: config.NODE_ENV === 'development' ? consoleFormat : jsonFormat,
-        }),
-    ],
-});
+const formatMessage = (level: string, message: string, meta?: any): string => {
+    const timestamp = new Date().toISOString();
+    const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+    return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr}`;
+};
 
-// Add file transports in production
-if (config.NODE_ENV === 'production') {
-    logger.add(new winston.transports.File({
-        filename: 'logs/error.log',
-        level: 'error',
-        format: jsonFormat,
-        maxsize: 5242880, // 5MB
-        maxFiles: 5,
-    }));
+export const logger = {
+    debug: (message: string, meta?: any) => {
+        if (LOG_LEVELS.debug >= LOG_LEVELS[currentLevel]) {
+            console.debug(formatMessage('debug', message, meta));
+        }
+    },
 
-    logger.add(new winston.transports.File({
-        filename: 'logs/combined.log',
-        format: jsonFormat,
-        maxsize: 5242880,
-        maxFiles: 5,
-    }));
-}
+    info: (message: string, meta?: any) => {
+        if (LOG_LEVELS.info >= LOG_LEVELS[currentLevel]) {
+            console.info(formatMessage('info', message, meta));
+        }
+    },
+
+    warn: (message: string, meta?: any) => {
+        if (LOG_LEVELS.warn >= LOG_LEVELS[currentLevel]) {
+            console.warn(formatMessage('warn', message, meta));
+        }
+    },
+
+    error: (message: string, meta?: any) => {
+        console.error(formatMessage('error', message, meta));
+    },
+};
 
 // =============================================================================
-// HTTP Request Logger Middleware
+// Request Logger Middleware
 // =============================================================================
 
-export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
+    // Generate unique request ID
+    const requestId = uuidv4();
+    (req as any).requestId = requestId;
+    res.setHeader('X-Request-Id', requestId);
+
     const startTime = Date.now();
-    const requestId = req.headers['x-request-id'] as string;
+    const { method, path, query } = req;
 
-    // Log request
-    logger.info('Incoming request', {
+    // Log incoming request
+    logger.info(`--> ${method} ${path}`, {
         requestId,
-        method: req.method,
-        url: req.url,
+        query: Object.keys(query).length > 0 ? query : undefined,
         ip: req.ip,
-        userAgent: req.headers['user-agent'],
+        userAgent: req.headers['user-agent']?.substring(0, 100),
     });
 
-    // Log response on finish
-    res.on('finish', () => {
+    // Capture response
+    const originalEnd = res.end;
+    res.end = function (...args: any[]) {
         const duration = Date.now() - startTime;
-        const logLevel = res.statusCode >= 500 ? 'error'
-            : res.statusCode >= 400 ? 'warn'
-                : 'info';
+        const statusCode = res.statusCode;
 
-        logger[logLevel]('Request completed', {
+        // Color code based on status
+        const statusEmoji =
+            statusCode >= 500 ? '❌' :
+                statusCode >= 400 ? '⚠️' :
+                    statusCode >= 300 ? '↪️' : '✅';
+
+        logger.info(`<-- ${statusEmoji} ${statusCode} ${method} ${path} (${duration}ms)`, {
             requestId,
-            method: req.method,
-            url: req.url,
-            statusCode: res.statusCode,
-            duration: `${duration}ms`,
-            contentLength: res.get('content-length'),
+            duration,
+            contentLength: res.getHeader('content-length'),
         });
-    });
+
+        return originalEnd.apply(res, args);
+    };
 
     next();
 };
 
 // =============================================================================
-// Specialized Loggers
+// Audit Logger (for sensitive operations)
 // =============================================================================
 
-export const mqttLogger = {
-    info: (message: string, meta?: object) =>
-        logger.info(`[MQTT] ${message}`, { service: 'mqtt', ...meta }),
-    error: (message: string, meta?: object) =>
-        logger.error(`[MQTT] ${message}`, { service: 'mqtt', ...meta }),
-    debug: (message: string, meta?: object) =>
-        logger.debug(`[MQTT] ${message}`, { service: 'mqtt', ...meta }),
+interface AuditLog {
+    timestamp: Date;
+    userId?: string;
+    action: string;
+    resource: string;
+    resourceId?: string;
+    details?: any;
+    ip?: string;
+    userAgent?: string;
+    success: boolean;
+    errorMessage?: string;
+}
+
+const auditLogs: AuditLog[] = [];
+
+export const auditLogger = {
+    log: (data: Omit<AuditLog, 'timestamp'>) => {
+        const entry: AuditLog = {
+            ...data,
+            timestamp: new Date(),
+        };
+
+        auditLogs.push(entry);
+
+        // Keep only last 10000 entries in memory
+        if (auditLogs.length > 10000) {
+            auditLogs.shift();
+        }
+
+        // Log to console in development
+        if (process.env.NODE_ENV === 'development') {
+            logger.info(`[AUDIT] ${data.action} ${data.resource}`, {
+                userId: data.userId,
+                success: data.success,
+            });
+        }
+    },
+
+    getRecent: (limit: number = 100): AuditLog[] => {
+        return auditLogs.slice(-limit);
+    },
+
+    getByUser: (userId: string, limit: number = 50): AuditLog[] => {
+        return auditLogs
+            .filter(log => log.userId === userId)
+            .slice(-limit);
+    },
 };
 
-export const deviceLogger = {
-    info: (deviceId: string, message: string, meta?: object) =>
-        logger.info(`[Device:${deviceId}] ${message}`, { deviceId, ...meta }),
-    error: (deviceId: string, message: string, meta?: object) =>
-        logger.error(`[Device:${deviceId}] ${message}`, { deviceId, ...meta }),
-    warn: (deviceId: string, message: string, meta?: object) =>
-        logger.warn(`[Device:${deviceId}] ${message}`, { deviceId, ...meta }),
-};
+// =============================================================================
+// Performance Logger
+// =============================================================================
 
-export const authLogger = {
-    loginSuccess: (userId: string, ip: string) =>
-        logger.info('User login successful', { event: 'login_success', userId, ip }),
-    loginFailed: (email: string, ip: string, reason: string) =>
-        logger.warn('Login attempt failed', { event: 'login_failed', email, ip, reason }),
-    tokenRefresh: (userId: string) =>
-        logger.info('Token refreshed', { event: 'token_refresh', userId }),
-    logout: (userId: string) =>
-        logger.info('User logged out', { event: 'logout', userId }),
-};
+export const performanceLogger = {
+    start: (operation: string): () => void => {
+        const startTime = process.hrtime.bigint();
 
-export const securityLogger = {
-    rateLimitExceeded: (ip: string, endpoint: string) =>
-        logger.warn('Rate limit exceeded', { event: 'rate_limit', ip, endpoint }),
-    invalidToken: (ip: string) =>
-        logger.warn('Invalid token attempt', { event: 'invalid_token', ip }),
-    suspiciousActivity: (ip: string, details: string) =>
-        logger.error('Suspicious activity detected', { event: 'suspicious', ip, details }),
+        return () => {
+            const endTime = process.hrtime.bigint();
+            const durationMs = Number(endTime - startTime) / 1_000_000;
+
+            if (durationMs > 1000) {
+                logger.warn(`Slow operation: ${operation} took ${durationMs.toFixed(2)}ms`);
+            } else if (process.env.NODE_ENV === 'development') {
+                logger.debug(`${operation}: ${durationMs.toFixed(2)}ms`);
+            }
+        };
+    },
 };
