@@ -283,15 +283,15 @@ docker-compose down
 
 ## 📝 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the Bapak Narji License. See `LICENSE` for more information.
 
 ---
 
 ## 📞 Contact
 
 **Smart Gate Solutions**  
-Email: support@gatemate.io  
-Website: https://gatemate.io
+Email: punyofauzan3@gmail.com  
+Website: 
 
 ---
 
@@ -302,3 +302,4 @@ Website: https://gatemate.io
 ⭐ Star this repo if you find it useful!
 
 </div>
+
