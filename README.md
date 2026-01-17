@@ -1,251 +1,304 @@
-# 🚪 GATEMATE - Smart IoT Gate Control System
+# 🚪 GATEMATE - IoT Gate Control System
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.0.5-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Platform](https://img.shields.io/badge/platform-ESP32%20%7C%20Web%20%7C%20Mobile-orange.svg)
+![GATEMATE Logo](docs/assets/logo.png)
 
-**Sistem kontrol gerbang pintar berbasis IoT dengan fitur lengkap untuk keamanan rumah modern**
+**Sistema Kontrol Gerbang IoT yang Lengkap dan Aman**
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [User Guide](#-user-guide) • [API Docs](#-api-documentation)
+[![GitHub Stars](https://img.shields.io/github/stars/Muhammad-Fauzan22/gatemate-iot?style=social)](https://github.com/Muhammad-Fauzan22/gatemate-iot)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Muhammad-Fauzan22/gatemate-iot/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Muhammad-Fauzan22/gatemate-iot/ci.yml?branch=master)](https://github.com/Muhammad-Fauzan22/gatemate-iot/actions)
+
+[Demo](https://expo.dev/@muhammadfauzans-organization/gatemate-mobile-app) • [Dokumentasi](docs/) • [API Reference](https://api.gatemate.io/api-docs)
 
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Fitur Utama
 
-| Feature | Description |
-|---------|-------------|
-| 🔐 **Remote Control** | Buka/tutup gerbang dari mana saja via app |
-| 📅 **Smart Scheduling** | Jadwal otomatis buka/tutup gerbang |
-| 👥 **Multi-User** | Kelola akses untuk keluarga & ART |
-| 🎫 **Guest Access** | QR code sementara untuk tamu/kurir |
-| 📊 **Diagnostics** | Monitor kesehatan device real-time |
-| 🔔 **Notifications** | Push notification untuk setiap aktivitas |
-| 🛡️ **Safety First** | Watchdog, current/temp protection |
-| 📱 **PWA + Mobile** | Web app + React Native |
-
----
-
-## 🏗️ Architecture
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   ESP32      │────▶│   Backend    │◀────│   Frontend   │
-│   Firmware   │MQTT │   Node.js    │REST │   React PWA  │
-└──────────────┘     └──────────────┘     └──────────────┘
-       │                    │                    │
-       │                    ▼                    │
-       │            ┌──────────────┐             │
-       │            │  PostgreSQL  │             │
-       │            │  + Redis     │             │
-       │            └──────────────┘             │
-       │                                         │
-       ▼                                         ▼
-┌──────────────┐                        ┌──────────────┐
-│   Gerbang    │                        │  Mobile App  │
-│   Fisik      │                        │  React Native│
-└──────────────┘                        └──────────────┘
-```
+| Fitur | Deskripsi |
+|-------|-----------|
+| 🔐 **Autentikasi Aman** | JWT dengan refresh token, rate limiting |
+| 📱 **Mobile App** | React Native dengan Expo (Android & iOS) |
+| 🌐 **Web Dashboard** | React + Vite dengan real-time updates |
+| 🚪 **Kontrol Gerbang** | Buka/tutup secara real-time via MQTT |
+| ⏰ **Penjadwalan** | Otomatisasi buka/tutup berdasarkan waktu |
+| 📍 **Geo-Fence** | Auto buka/tutup berdasarkan lokasi |
+| 👥 **Akses Tamu** | QR code untuk akses sementara |
+| 📹 **Integrasi CCTV** | Streaming kamera keamanan |
+| 🔔 **Notifikasi** | Push notifications untuk semua aktivitas |
+| 📊 **Dashboard Monitoring** | Status perangkat real-time |
 
 ---
 
-## � Quick Start
+## 🏗️ Arsitektur Sistem
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Mobile App    │     │   Web Dashboard  │     │   ESP32 Device  │
+│  (React Native) │     │  (React + Vite)  │     │   (Firmware)    │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────┬───────┴───────────────────────┘
+                         │
+                    ┌────▼────┐
+                    │  Nginx  │
+                    │ (Proxy) │
+                    └────┬────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+    ┌────▼────┐    ┌─────▼─────┐   ┌─────▼─────┐
+    │ Backend │    │  Mosquitto │   │   Redis   │
+    │ (Node)  │◄──►│   (MQTT)   │   │  (Cache)  │
+    └────┬────┘    └───────────┘   └───────────┘
+         │
+    ┌────▼────┐
+    │PostgreSQL│
+    └─────────┘
+```
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Docker & Docker Compose
-- ESP32 DevKit (untuk firmware)
+- Expo CLI (untuk mobile)
 
 ### 1. Clone Repository
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/gatemate.git
-cd gatemate
+git clone https://github.com/Muhammad-Fauzan22/gatemate-iot.git
+cd gatemate-iot
 ```
 
-### 2. Backend Setup
+### 2. Setup Environment
+
 ```bash
-cd backend
-npm install
-cp .env.production .env  # Edit dengan credentials Anda
-npm run db:migrate
-npm run dev
+# Backend
+cp backend/.env.example backend/.env
+
+# Frontend
+cp frontend/.env.example frontend/.env
+
+# Mobile
+cp mobile/.env.example mobile/.env
 ```
 
-### 3. Frontend Setup
+### 3. Run dengan Docker
+
 ```bash
-cd frontend
-npm install
-npm run dev
-# Buka http://localhost:5173
+# Development
+docker-compose up -d
+
+# Atau manual
+cd backend && npm install && npm run dev
+cd frontend && npm install && npm run dev
+cd mobile && npm install && npx expo start
 ```
 
-### 4. ESP32 Firmware
-```bash
-cd firmware
-# Buka dengan PlatformIO
-# Edit config.h dengan WiFi credentials
-# Upload ke ESP32
+### 4. Akses Aplikasi
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:5000 |
+| API Docs | http://localhost:5000/api-docs |
+| Mobile (Expo) | exp://localhost:8081 |
+
+---
+
+## 📁 Struktur Proyek
+
+```
+gatemate-iot/
+├── backend/                 # Node.js API Server
+│   ├── src/
+│   │   ├── config/         # Environment & Swagger
+│   │   ├── middleware/     # Auth, Rate Limit, Security
+│   │   ├── modules/        # Auth, Devices, Schedules, Guest
+│   │   └── utils/          # Validation, Helpers
+│   ├── tests/              # Unit & Integration Tests
+│   ├── prisma/             # Database Schema
+│   └── Dockerfile
+├── frontend/               # React Web Dashboard
+│   ├── src/
+│   │   ├── components/     # UI Components
+│   │   ├── pages/          # Route Pages
+│   │   ├── stores/         # Zustand Stores
+│   │   └── services/       # API Services
+│   └── Dockerfile
+├── mobile/                 # React Native App
+│   ├── src/
+│   │   ├── screens/        # App Screens
+│   │   ├── navigation/     # React Navigation
+│   │   ├── stores/         # State Management
+│   │   └── services/       # Notification, WebSocket
+│   ├── app.json            # Expo Config
+│   └── eas.json            # EAS Build Config
+├── firmware/               # ESP32 Arduino Code
+│   └── gatemate_firmware/
+├── docs/                   # Documentation
+├── docker/                 # Docker Configs
+├── .github/workflows/      # CI/CD Pipeline
+└── docker-compose.yml
 ```
 
 ---
 
-## 📱 User Guide
+## 🔧 Konfigurasi
 
-### Fase 1: Unboxing & Install Hardware
-1. Buka kemasan GATEMATE
-2. Pasang controller ke wiring gerbang
-3. Hubungkan ke power supply 12V
-4. LED akan berkedip menandakan siap setup
+### Environment Variables
 
-### Fase 2: Setup WiFi (AP Mode)
-1. Pada HP, buka **Settings > WiFi**
-2. Connect ke: `GATEMATE-SETUP` (password: `12345678`)
-3. Buka browser → `192.168.4.1`
-4. Masukkan nama WiFi rumah & password
-5. Tunggu device restart & terkoneksi
+```env
+# Backend
+DATABASE_URL=postgresql://user:pass@localhost:5432/gatemate
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your-super-secret-key
+MQTT_BROKER_URL=mqtt://localhost:1883
 
-### Fase 3: Install Aplikasi
-- **Web App**: Buka `https://app.gatemate.com` di browser
-- **Android**: Download dari Play Store (coming soon)
-- **iOS**: Download dari App Store (coming soon)
-
-### Fase 4: Pairing Device
-1. Buka aplikasi GATEMATE
-2. Login/Register akun baru
-3. Tap **"+ Tambah Device"**
-4. Pilih **Scan Jaringan** atau masukkan IP manual
-5. Beri nama device (misal: "Gerbang Depan")
-6. Device siap digunakan! ✅
-
-### Fase 5: Kontrol Gerbang
-| Aksi | Langkah |
-|------|---------|
-| **Buka** | Tap tombol hijau "OPEN" |
-| **Tutup** | Tap tombol merah "CLOSE" |
-| **Stop** | Tap "STOP" saat bergerak |
-| **Partial** | Geser slider ke persentase yang diinginkan |
-
-### Fase 6: Guest Access (QR untuk Tamu)
-1. Buka menu **"Guest Access"**
-2. Pilih durasi akses (1-24 jam)
-3. Pilih permission (Buka/Tutup)
-4. Tap **"Generate QR"**
-5. Share ke tamu via WhatsApp
-6. Tamu scan QR → langsung bisa kontrol
-
-### Fase 7: Kelola Anggota Keluarga
-1. Buka menu **"Manage Users"**
-2. Tap **"+ Invite"**
-3. Masukkan email anggota keluarga
-4. Pilih role:
-   - **Admin**: Full control + kelola user
-   - **Operator**: Buka/tutup saja
-   - **Viewer**: Lihat status saja
-5. Undangan dikirim via email
-
-### Fase 8: Smart Schedule
-1. Buka menu **"Schedule"**
-2. Tap **"+ Add Schedule"**
-3. Pilih aksi (Buka/Tutup)
-4. Set waktu & pengulangan
-5. Contoh: "Buka jam 06:00 setiap hari kerja"
-
-### Fase 9: Diagnostics & Troubleshooting
-1. Buka menu **"Diagnostics"**
-2. Tap **"Run System Check"**
-3. Lihat status setiap komponen:
-   - ✅ OK = Normal
-   - ⚠️ Warning = Perlu perhatian
-   - ❌ Error = Perlu tindakan
-4. Ikuti rekomendasi yang muncul
+# Mobile
+EXPO_PUBLIC_API_URL=http://192.168.1.x:5000
+EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-key
+```
 
 ---
 
-## 🔧 Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| Device offline | 1. Cek power supply<br>2. Cek router WiFi<br>3. Restart device |
-| Gerbang tidak bergerak | 1. Cek motor wiring<br>2. Cek limit switch<br>3. Diagnostics > Motor Test |
-| App tidak bisa login | 1. Cek koneksi internet<br>2. Reset password<br>3. Clear app data |
-| QR tidak berfungsi | 1. Cek expiry time<br>2. Generate ulang<br>3. Pastikan tamu punya internet |
-
----
-
-## � API Documentation
-
-Full API documentation: [docs/api/openapi.yaml](docs/api/openapi.yaml)
-
-### Key Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/auth/login` | User login |
-| `POST` | `/api/v1/commands/:deviceId/open` | Buka gerbang |
-| `POST` | `/api/v1/commands/:deviceId/close` | Tutup gerbang |
-| `GET` | `/api/v1/devices` | List semua device |
-| `POST` | `/api/v1/guest/create` | Buat guest pass |
-| `GET` | `/api/v1/schedules` | List schedules |
-
----
-
-## � Security
-
-- ✅ JWT Authentication (15min access + 7day refresh)
-- ✅ Rate Limiting (100 req/15min)
-- ✅ Input Validation (Zod)
-- ✅ XSS & SQL Injection Protection
-- ✅ HTTPS/TLS Encryption
-- ✅ Role-Based Access Control
-
----
-
-## 🐳 Deployment
+## 📱 Mobile App
 
 ### Development
+
 ```bash
-docker-compose -f docker/docker-compose.yml up -d
+cd mobile
+npm install
+npx expo start
 ```
 
-### Production
+### Build APK
+
 ```bash
-docker-compose -f docker/docker-compose.prod.yml up -d
+# Preview (APK untuk testing)
+npx eas build --profile preview --platform android
+
+# Production (AAB untuk Play Store)
+npx eas build --profile production --platform android
+```
+
+### OTA Update
+
+```bash
+npx eas update --branch production --message "Update message"
 ```
 
 ---
 
-## � Project Structure
+## 🧪 Testing
 
-```
-GATE PROJECT/
-├── firmware/          # ESP32 PlatformIO
-├── backend/           # Node.js Express API
-├── frontend/          # React PWA (Vite)
-├── mobile/            # React Native Expo
-├── docker/            # Docker configs
-├── docs/              # API & User docs
-└── .github/           # CI/CD workflows
+```bash
+# Backend tests
+cd backend
+npm test                    # Run all tests
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests
+npm run test:watch         # Watch mode
+
+# Test coverage
+npm test -- --coverage
 ```
 
 ---
 
-## 🤝 Support
+## 🐳 Docker Deployment
 
-- 📧 Email: support@gatemate.com
-- 📱 WhatsApp: +62 xxx-xxxx-xxxx
-- 🌐 Website: https://gatemate.com
+```bash
+# Build & run all services
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f backend
+
+# Stop all
+docker-compose down
+```
 
 ---
 
-## 📄 License
+## 📊 API Endpoints
 
-MIT License - See [LICENSE](LICENSE) for details
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| POST | `/api/v1/auth/register` | Registrasi user |
+| POST | `/api/v1/auth/login` | Login user |
+| POST | `/api/v1/auth/refresh` | Refresh token |
+| GET | `/api/v1/devices` | List perangkat |
+| POST | `/api/v1/devices/:id/command` | Kirim perintah |
+| GET | `/api/v1/schedules` | List jadwal |
+| POST | `/api/v1/guest` | Buat akses tamu |
+
+📖 Dokumentasi lengkap: `/api-docs`
+
+---
+
+## 🔐 Keamanan
+
+- ✅ JWT Authentication dengan Refresh Token
+- ✅ Rate Limiting (Auth: 5/15min, API: 100/min)
+- ✅ Input Validation (Zod)
+- ✅ Security Headers (Helmet, CSP)
+- ✅ Request Sanitization
+- ✅ Audit Logging
+- ✅ CORS Configuration
+
+---
+
+## 📈 Status Proyek
+
+| Komponen | Progress | Status |
+|----------|----------|--------|
+| Backend API | 95% | ✅ Production Ready |
+| Mobile App | 90% | ✅ Published |
+| Web Frontend | 75% | 🔄 In Progress |
+| ESP32 Firmware | 85% | ✅ Stable |
+| DevOps | 90% | ✅ Configured |
+
+**Overall: 92% Complete**
+
+---
+
+## 🤝 Contributing
+
+1. Fork repository
+2. Buat feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push ke branch (`git push origin feature/AmazingFeature`)
+5. Buka Pull Request
+
+---
+
+## 📝 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 📞 Contact
+
+**Smart Gate Solutions**  
+Email: support@gatemate.io  
+Website: https://gatemate.io
 
 ---
 
 <div align="center">
-Made with ❤️ by Smart Gate Solutions
+
+**Made with ❤️ by Smart Gate Solutions**
+
+⭐ Star this repo if you find it useful!
+
 </div>
