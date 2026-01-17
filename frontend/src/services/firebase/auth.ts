@@ -6,9 +6,8 @@ import {
     sendPasswordResetEmail,
     updateProfile,
     onAuthStateChanged,
-    User,
-    UserCredential
 } from 'firebase/auth'
+import type { User, UserCredential } from 'firebase/auth'
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, googleProvider, db } from './config'
 
