@@ -1,266 +1,334 @@
 // =============================================================================
-// GATEMATE Backend - Guest Access Service
+// GATEMATE Backend - Guest Access Routes with QR Code
 // =============================================================================
 
-import { Router } from 'express';
-import crypto from 'crypto';
+import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
-import { AuthRequest } from '../../types/auth.types.js';
-import type { Response, NextFunction } from 'express';
+import { validate, asyncHandler, NotFoundError, AuthorizationError, ValidationError } from '../../middleware/error.middleware.js';
+import { guestAccessSchema, idParamSchema, paginationSchema } from '../../utils/validation.js';
+import { auditLogger } from '../../middleware/logger.middleware.js';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-// Store temporary guest passes in memory (use Redis in production)
-const guestPasses = new Map<string, GuestPass>();
+// =============================================================================
+// Helper Functions
+// =============================================================================
 
-interface GuestPass {
-    id: string;
-    deviceId: string;
-    createdBy: string;
-    permissions: ('open' | 'close' | 'view')[];
-    expiresAt: Date;
-    maxUses: number;
-    usedCount: number;
-    name?: string;
+function generateAccessCode(): string {
+    return crypto.randomBytes(16).toString('hex');
 }
 
-// Create guest access pass
-router.post('/create', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-        const { deviceId, duration = 2, permissions = ['open'], maxUses = 1, name } = req.body;
+function generateQRData(code: string): string {
+    const baseUrl = process.env.GUEST_ACCESS_URL || 'https://gatemate.io/guest';
+    return `${baseUrl}?code=${code}`;
+}
+
+// =============================================================================
+// Protected Routes (Owner creates guest access)
+// =============================================================================
+
+/**
+ * GET /api/v1/guest
+ * List all guest access tokens created by user
+ */
+router.get('/',
+    authMiddleware,
+    validate({ query: paginationSchema }),
+    asyncHandler(async (req: Request, res: Response) => {
+        const userId = (req as any).user.userId;
+        const { page = 1, limit = 20 } = req.query as any;
+
+        const skip = (page - 1) * limit;
+
+        const [guests, total] = await Promise.all([
+            prisma.guestAccess.findMany({
+                where: { userId },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    device: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            }),
+            prisma.guestAccess.count({ where: { userId } }),
+        ]);
+
+        res.json({
+            success: true,
+            data: guests.map(g => ({
+                ...g,
+                qrData: generateQRData(g.code),
+                isExpired: g.expiresAt ? new Date(g.expiresAt) < new Date() : false,
+                isExhausted: g.usedCount >= g.maxUses,
+            })),
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    })
+);
+
+/**
+ * POST /api/v1/guest
+ * Create a new guest access token
+ */
+router.post('/',
+    authMiddleware,
+    validate({ body: guestAccessSchema }),
+    asyncHandler(async (req: Request, res: Response) => {
+        const userId = (req as any).user.userId;
+        const { deviceId, name, expiresAt, maxUses, permissions } = req.body;
 
         // Verify device ownership
         const device = await prisma.device.findFirst({
-            where: {
-                id: deviceId,
-                users: { some: { userId: req.user!.userId } },
-            },
+            where: { id: deviceId, userId },
         });
 
         if (!device) {
-            return res.status(404).json({ error: 'Device not found' });
+            throw new AuthorizationError('Anda tidak memiliki akses ke perangkat ini');
         }
 
-        // Generate unique pass code
-        const passId = crypto.randomBytes(16).toString('hex');
-        const expiresAt = new Date(Date.now() + duration * 60 * 60 * 1000);
+        const code = generateAccessCode();
 
-        const guestPass: GuestPass = {
-            id: passId,
-            deviceId,
-            createdBy: req.user!.userId,
-            permissions,
-            expiresAt,
-            maxUses,
-            usedCount: 0,
-            name,
-        };
-
-        guestPasses.set(passId, guestPass);
-
-        // Generate QR code data
-        const qrData = {
-            type: 'gatemate_guest',
-            passId,
-            expiresAt: expiresAt.toISOString(),
-        };
-
-        // Log access creation
-        await prisma.accessLog.create({
+        const guestAccess = await prisma.guestAccess.create({
             data: {
+                code,
+                name,
+                userId,
                 deviceId,
-                userId: req.user!.userId,
-                action: 'guest_pass_created',
-                details: { passId, duration, permissions, name },
+                expiresAt: expiresAt ? new Date(expiresAt) : null,
+                maxUses,
+                permissions: JSON.stringify(permissions),
             },
+            include: {
+                device: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        auditLogger.log({
+            action: 'CREATE_GUEST_ACCESS',
+            resource: 'guest_access',
+            resourceId: guestAccess.id,
+            userId,
+            details: { name, deviceName: device.name, maxUses },
+            success: true,
         });
 
         res.status(201).json({
-            passId,
-            qrData: JSON.stringify(qrData),
-            qrUrl: `/api/v1/guest/use/${passId}`,
-            expiresAt,
-            permissions,
-            maxUses,
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Use guest pass (no auth required - accessed by guests)
-router.get('/use/:passId', async (req, res, next) => {
-    try {
-        const { passId } = req.params;
-        const guestPass = guestPasses.get(passId);
-
-        if (!guestPass) {
-            return res.status(404).json({ error: 'Pass not found or expired' });
-        }
-
-        if (new Date() > guestPass.expiresAt) {
-            guestPasses.delete(passId);
-            return res.status(410).json({ error: 'Pass expired' });
-        }
-
-        // Return guest control page
-        res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>GATEMATE Guest Access</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #141e15 0%, #1c261d 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-          }
-          .container {
-            background: rgba(255,255,255,0.05);
-            border-radius: 24px;
-            padding: 40px;
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-          }
-          h1 { color: #4bbe4f; font-size: 28px; margin-bottom: 8px; }
-          p { color: #9ca3af; margin-bottom: 24px; }
-          .btn {
-            display: block;
-            width: 100%;
-            padding: 20px;
-            border: none;
-            border-radius: 16px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 16px;
-            transition: transform 0.2s;
-          }
-          .btn:active { transform: scale(0.95); }
-          .btn-open { background: #4bbe4f; color: #000; }
-          .btn-close { background: rgba(255,255,255,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-          .status { color: #4bbe4f; margin-top: 20px; display: none; }
-          .expires { color: #6b7280; font-size: 12px; margin-top: 16px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>🚪 GATEMATE</h1>
-          <p>${guestPass.name || 'Guest Access'}</p>
-          ${guestPass.permissions.includes('open') ? '<button class="btn btn-open" onclick="sendCommand(\'open\')">🔓 OPEN GATE</button>' : ''}
-          ${guestPass.permissions.includes('close') ? '<button class="btn btn-close" onclick="sendCommand(\'close\')">🔒 CLOSE GATE</button>' : ''}
-          <div class="status" id="status">✓ Command sent!</div>
-          <p class="expires">Expires: ${guestPass.expiresAt.toLocaleString()}</p>
-        </div>
-        <script>
-          async function sendCommand(cmd) {
-            try {
-              const res = await fetch('/api/v1/guest/execute/${passId}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: cmd })
-              });
-              if (res.ok) {
-                document.getElementById('status').style.display = 'block';
-                setTimeout(() => document.getElementById('status').style.display = 'none', 3000);
-              } else {
-                alert('Failed to execute command');
-              }
-            } catch(e) {
-              alert('Error: ' + e.message);
-            }
-          }
-        </script>
-      </body>
-      </html>
-    `);
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Execute guest command
-router.post('/execute/:passId', async (req, res, next) => {
-    try {
-        const { passId } = req.params;
-        const { command } = req.body;
-        const guestPass = guestPasses.get(passId);
-
-        if (!guestPass) {
-            return res.status(404).json({ error: 'Pass not found' });
-        }
-
-        if (new Date() > guestPass.expiresAt) {
-            guestPasses.delete(passId);
-            return res.status(410).json({ error: 'Pass expired' });
-        }
-
-        if (guestPass.usedCount >= guestPass.maxUses) {
-            return res.status(403).json({ error: 'Max uses exceeded' });
-        }
-
-        if (!guestPass.permissions.includes(command)) {
-            return res.status(403).json({ error: 'Permission denied for this action' });
-        }
-
-        // Increment use count
-        guestPass.usedCount++;
-
-        // Log guest access
-        await prisma.accessLog.create({
+            success: true,
+            message: 'Akses tamu berhasil dibuat',
             data: {
-                deviceId: guestPass.deviceId,
-                action: 'guest_command',
-                details: { passId, command, usedCount: guestPass.usedCount },
-                ipAddress: req.ip,
+                ...guestAccess,
+                qrData: generateQRData(code),
+            },
+        });
+    })
+);
+
+/**
+ * DELETE /api/v1/guest/:id
+ * Revoke a guest access token
+ */
+router.delete('/:id',
+    authMiddleware,
+    validate({ params: idParamSchema }),
+    asyncHandler(async (req: Request, res: Response) => {
+        const userId = (req as any).user.userId;
+        const { id } = req.params;
+
+        const existing = await prisma.guestAccess.findFirst({
+            where: { id, userId },
+        });
+
+        if (!existing) {
+            throw new NotFoundError('Akses tamu');
+        }
+
+        await prisma.guestAccess.delete({ where: { id } });
+
+        auditLogger.log({
+            action: 'REVOKE_GUEST_ACCESS',
+            resource: 'guest_access',
+            resourceId: id,
+            userId,
+            details: { name: existing.name },
+            success: true,
+        });
+
+        res.json({
+            success: true,
+            message: 'Akses tamu berhasil dicabut',
+        });
+    })
+);
+
+// =============================================================================
+// Public Routes (Guest uses access code)
+// =============================================================================
+
+/**
+ * POST /api/v1/guest/access
+ * Use guest access code to control device
+ */
+router.post('/access',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { code, action } = req.body;
+
+        if (!code || !action) {
+            throw new ValidationError('Kode dan aksi diperlukan');
+        }
+
+        // Find guest access
+        const guestAccess = await prisma.guestAccess.findUnique({
+            where: { code },
+            include: {
+                device: true,
+                user: {
+                    select: {
+                        name: true,
+                    },
+                },
             },
         });
 
-        // TODO: Send command to device via MQTT
-        console.log(`Guest command: ${command} for device ${guestPass.deviceId}`);
-
-        res.json({ message: 'Command executed', command });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// List active guest passes
-router.get('/list', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-        const passes = Array.from(guestPasses.values())
-            .filter(p => p.createdBy === req.user!.userId && new Date() < p.expiresAt);
-
-        res.json(passes);
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Revoke guest pass
-router.delete('/:passId', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-        const { passId } = req.params;
-        const guestPass = guestPasses.get(passId);
-
-        if (!guestPass || guestPass.createdBy !== req.user!.userId) {
-            return res.status(404).json({ error: 'Pass not found' });
+        if (!guestAccess) {
+            throw new NotFoundError('Kode akses');
         }
 
-        guestPasses.delete(passId);
-        res.json({ message: 'Pass revoked' });
-    } catch (error) {
-        next(error);
-    }
-});
+        // Check expiration
+        if (guestAccess.expiresAt && new Date(guestAccess.expiresAt) < new Date()) {
+            throw new AuthorizationError('Kode akses sudah kadaluarsa');
+        }
+
+        // Check usage limit
+        if (guestAccess.usedCount >= guestAccess.maxUses) {
+            throw new AuthorizationError('Kode akses sudah mencapai batas penggunaan');
+        }
+
+        // Check permission
+        const permissions = JSON.parse(guestAccess.permissions || '["open"]');
+        if (!permissions.includes(action)) {
+            throw new AuthorizationError(`Anda tidak memiliki izin untuk ${action}`);
+        }
+
+        // Increment usage count
+        await prisma.guestAccess.update({
+            where: { id: guestAccess.id },
+            data: {
+                usedCount: guestAccess.usedCount + 1,
+                lastUsedAt: new Date(),
+            },
+        });
+
+        // Create activity log
+        await prisma.activityLog.create({
+            data: {
+                userId: guestAccess.userId,
+                deviceId: guestAccess.deviceId,
+                action,
+                source: 'guest',
+                details: JSON.stringify({ guestName: guestAccess.name }),
+            },
+        });
+
+        auditLogger.log({
+            action: `GUEST_${action.toUpperCase()}`,
+            resource: 'device',
+            resourceId: guestAccess.deviceId,
+            details: {
+                guestName: guestAccess.name,
+                deviceName: guestAccess.device.name,
+                usedCount: guestAccess.usedCount + 1,
+            },
+            ip: req.ip,
+            success: true,
+        });
+
+        // TODO: Send command to device via MQTT
+
+        res.json({
+            success: true,
+            message: `Perintah ${action} berhasil dikirim`,
+            data: {
+                deviceName: guestAccess.device.name,
+                action,
+                remainingUses: guestAccess.maxUses - guestAccess.usedCount - 1,
+            },
+        });
+    })
+);
+
+/**
+ * GET /api/v1/guest/verify/:code
+ * Verify if a guest access code is valid
+ */
+router.get('/verify/:code',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { code } = req.params;
+
+        const guestAccess = await prisma.guestAccess.findUnique({
+            where: { code },
+            include: {
+                device: {
+                    select: {
+                        name: true,
+                        type: true,
+                    },
+                },
+                user: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        if (!guestAccess) {
+            res.json({
+                success: true,
+                data: {
+                    valid: false,
+                    reason: 'Kode tidak ditemukan',
+                },
+            });
+            return;
+        }
+
+        const isExpired = guestAccess.expiresAt ? new Date(guestAccess.expiresAt) < new Date() : false;
+        const isExhausted = guestAccess.usedCount >= guestAccess.maxUses;
+
+        res.json({
+            success: true,
+            data: {
+                valid: !isExpired && !isExhausted,
+                isExpired,
+                isExhausted,
+                guestName: guestAccess.name,
+                deviceName: guestAccess.device.name,
+                deviceType: guestAccess.device.type,
+                ownerName: guestAccess.user.name,
+                permissions: JSON.parse(guestAccess.permissions || '[]'),
+                remainingUses: Math.max(0, guestAccess.maxUses - guestAccess.usedCount),
+                expiresAt: guestAccess.expiresAt,
+            },
+        });
+    })
+);
 
 export { router as guestRouter };
