@@ -2,162 +2,327 @@
 // GATEMATE Backend - Auth Service Unit Tests
 // =============================================================================
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prismaMock, createMockUser, createMockSession } from '../setup';
 
-// Type helper for mocking Prisma methods
-type MockFunction = jest.Mock<any, any>;
+// Mock Prisma
+const mockPrisma = {
+    user: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+    session: {
+        create: vi.fn(),
+        findUnique: vi.fn(),
+        delete: vi.fn(),
+        deleteMany: vi.fn(),
+    },
+};
+
+vi.mock('@prisma/client', () => ({
+    PrismaClient: vi.fn(() => mockPrisma),
+}));
+
+// Mock config
+vi.mock('../../config/env.js', () => ({
+    config: {
+        JWT_SECRET: 'test-secret-key',
+        JWT_EXPIRES_IN: '24h',
+        JWT_REFRESH_EXPIRES_IN: '7d',
+    },
+}));
+
+import { AuthService } from '../auth.service.js';
 
 describe('AuthService', () => {
+    let authService: AuthService;
+
     beforeEach(() => {
-        jest.clearAllMocks();
+        authService = new AuthService();
+        vi.clearAllMocks();
     });
 
+    afterEach(() => {
+        vi.resetAllMocks();
+    });
+
+    // =========================================================================
+    // Register Tests
+    // =========================================================================
     describe('register', () => {
-        it('should create a new user with hashed password', async () => {
+        it('should register a new user successfully', async () => {
             const input = {
-                email: 'new@example.com',
-                password: 'Password123!',
-                name: 'New User',
+                email: 'test@example.com',
+                password: 'Password123',
+                name: 'Test User',
             };
 
-            const hashedPassword = await bcrypt.hash(input.password, 12);
-            const mockUser = createMockUser({
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+            mockPrisma.user.create.mockResolvedValue({
+                id: 'user-123',
                 email: input.email,
                 name: input.name,
+                role: 'user',
+                createdAt: new Date(),
+            });
+            mockPrisma.session.create.mockResolvedValue({
+                id: 'session-123',
+            });
+
+            const result = await authService.register(input);
+
+            expect(result.user).toBeDefined();
+            expect(result.user.email).toBe(input.email);
+            expect(result.accessToken).toBeDefined();
+            expect(result.refreshToken).toBeDefined();
+        });
+
+        it('should throw error if email already exists', async () => {
+            const input = {
+                email: 'existing@example.com',
+                password: 'Password123',
+                name: 'Test User',
+            };
+
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'existing-user',
+                email: input.email,
+            });
+
+            await expect(authService.register(input)).rejects.toThrow('Email already registered');
+        });
+
+        it('should hash password before storing', async () => {
+            const input = {
+                email: 'test@example.com',
+                password: 'Password123',
+                name: 'Test User',
+            };
+
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+            mockPrisma.user.create.mockImplementation(async ({ data }) => {
+                // Verify password is hashed
+                expect(data.password).not.toBe(input.password);
+                expect(await bcrypt.compare(input.password, data.password)).toBe(true);
+                return {
+                    id: 'user-123',
+                    email: data.email,
+                    name: data.name,
+                    role: 'user',
+                    createdAt: new Date(),
+                };
+            });
+            mockPrisma.session.create.mockResolvedValue({ id: 'session-123' });
+
+            await authService.register(input);
+
+            expect(mockPrisma.user.create).toHaveBeenCalled();
+        });
+    });
+
+    // =========================================================================
+    // Login Tests
+    // =========================================================================
+    describe('login', () => {
+        it('should login with valid credentials', async () => {
+            const hashedPassword = await bcrypt.hash('Password123', 12);
+
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                email: 'test@example.com',
+                password: hashedPassword,
+                name: 'Test User',
+                role: 'user',
+                avatar: null,
+            });
+            mockPrisma.user.update.mockResolvedValue({});
+            mockPrisma.session.create.mockResolvedValue({ id: 'session-123' });
+
+            const result = await authService.login('test@example.com', 'Password123');
+
+            expect(result.user).toBeDefined();
+            expect(result.user.email).toBe('test@example.com');
+            expect(result.accessToken).toBeDefined();
+        });
+
+        it('should throw error for invalid email', async () => {
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+
+            await expect(
+                authService.login('nonexistent@example.com', 'Password123')
+            ).rejects.toThrow('Invalid credentials');
+        });
+
+        it('should throw error for invalid password', async () => {
+            const hashedPassword = await bcrypt.hash('CorrectPassword', 12);
+
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                email: 'test@example.com',
                 password: hashedPassword,
             });
 
-            // Use type assertion for mock methods
-            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(null);
-            (prismaMock.user.create as unknown as MockFunction).mockResolvedValue(mockUser);
-            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
-
-            // Verify password was hashed
-            const isPasswordHashed = await bcrypt.compare(input.password, hashedPassword);
-            expect(isPasswordHashed).toBe(true);
+            await expect(
+                authService.login('test@example.com', 'WrongPassword')
+            ).rejects.toThrow('Invalid credentials');
         });
 
-        it('should reject registration if email already exists', async () => {
-            const existingUser = createMockUser({ email: 'existing@example.com' });
+        it('should update lastLoginAt on successful login', async () => {
+            const hashedPassword = await bcrypt.hash('Password123', 12);
 
-            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(existingUser);
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                email: 'test@example.com',
+                password: hashedPassword,
+                name: 'Test User',
+                role: 'user',
+            });
+            mockPrisma.user.update.mockResolvedValue({});
+            mockPrisma.session.create.mockResolvedValue({ id: 'session-123' });
 
-            // Should throw ConflictError
-            expect(prismaMock.user.findUnique).toBeDefined();
+            await authService.login('test@example.com', 'Password123');
+
+            expect(mockPrisma.user.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'user-123' },
+                    data: expect.objectContaining({
+                        lastLoginAt: expect.any(Date),
+                    }),
+                })
+            );
+        });
+    });
+
+    // =========================================================================
+    // Refresh Token Tests
+    // =========================================================================
+    describe('refreshToken', () => {
+        it('should refresh token with valid refresh token', async () => {
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 7);
+
+            mockPrisma.session.findUnique.mockResolvedValue({
+                id: 'session-123',
+                refreshToken: 'valid-refresh-token',
+                expiresAt: futureDate,
+                user: {
+                    id: 'user-123',
+                    email: 'test@example.com',
+                    role: 'user',
+                },
+            });
+            mockPrisma.session.delete.mockResolvedValue({});
+            mockPrisma.session.create.mockResolvedValue({ id: 'new-session' });
+
+            const result = await authService.refreshToken('valid-refresh-token');
+
+            expect(result.accessToken).toBeDefined();
+            expect(result.refreshToken).toBeDefined();
         });
 
-        it('should validate password requirements', () => {
-            const weakPasswords = [
-                'short',           // Too short
-                'nouppercase1',    // No uppercase
-                'NOLOWERCASE1',    // No lowercase
-                'NoNumbers!',      // No numbers
-            ];
+        it('should throw error for expired refresh token', async () => {
+            const pastDate = new Date();
+            pastDate.setDate(pastDate.getDate() - 1);
 
-            weakPasswords.forEach(password => {
-                const hasUppercase = /[A-Z]/.test(password);
-                const hasLowercase = /[a-z]/.test(password);
-                const hasNumber = /[0-9]/.test(password);
-                const isLongEnough = password.length >= 8;
+            mockPrisma.session.findUnique.mockResolvedValue({
+                id: 'session-123',
+                refreshToken: 'expired-token',
+                expiresAt: pastDate,
+                user: { id: 'user-123' },
+            });
 
-                const isValid = hasUppercase && hasLowercase && hasNumber && isLongEnough;
-                expect(isValid).toBe(false);
+            await expect(
+                authService.refreshToken('expired-token')
+            ).rejects.toThrow('Invalid or expired refresh token');
+        });
+
+        it('should throw error for invalid refresh token', async () => {
+            mockPrisma.session.findUnique.mockResolvedValue(null);
+
+            await expect(
+                authService.refreshToken('invalid-token')
+            ).rejects.toThrow('Invalid or expired refresh token');
+        });
+    });
+
+    // =========================================================================
+    // Logout Tests
+    // =========================================================================
+    describe('logout', () => {
+        it('should delete session on logout', async () => {
+            mockPrisma.session.deleteMany.mockResolvedValue({ count: 1 });
+
+            await authService.logout('valid-token');
+
+            expect(mockPrisma.session.deleteMany).toHaveBeenCalledWith({
+                where: { token: 'valid-token' },
             });
         });
     });
 
-    describe('login', () => {
-        it('should return tokens for valid credentials', async () => {
-            const password = 'ValidPassword123!';
-            const hashedPassword = await bcrypt.hash(password, 12);
-            const mockUser = createMockUser({ password: hashedPassword });
+    // =========================================================================
+    // Get Profile Tests
+    // =========================================================================
+    describe('getProfile', () => {
+        it('should return user profile', async () => {
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                email: 'test@example.com',
+                name: 'Test User',
+                avatar: null,
+                role: 'user',
+                createdAt: new Date(),
+                lastLoginAt: new Date(),
+            });
 
-            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(mockUser);
-            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
-            (prismaMock.user.update as unknown as MockFunction).mockResolvedValue(mockUser);
+            const result = await authService.getProfile('user-123');
 
-            const isPasswordValid = await bcrypt.compare(password, hashedPassword);
-            expect(isPasswordValid).toBe(true);
+            expect(result.id).toBe('user-123');
+            expect(result.email).toBe('test@example.com');
         });
 
-        it('should reject invalid password', async () => {
-            const hashedPassword = await bcrypt.hash('CorrectPassword123!', 12);
-            const mockUser = createMockUser({ password: hashedPassword });
+        it('should throw error for non-existent user', async () => {
+            mockPrisma.user.findUnique.mockResolvedValue(null);
 
-            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(mockUser);
-
-            const isPasswordValid = await bcrypt.compare('WrongPassword123!', hashedPassword);
-            expect(isPasswordValid).toBe(false);
-        });
-
-        it('should reject non-existent user', async () => {
-            (prismaMock.user.findUnique as unknown as MockFunction).mockResolvedValue(null);
-
-            // Should throw AuthenticationError
-            const result = await prismaMock.user.findUnique({ where: { email: 'nonexistent@example.com' } });
-            expect(result).toBeNull();
+            await expect(authService.getProfile('non-existent')).rejects.toThrow('User not found');
         });
     });
 
-    describe('token generation', () => {
-        it('should generate valid JWT access token', () => {
-            const payload = { userId: 'user-123', email: 'test@example.com', role: 'USER' };
-            const secret = 'test-secret-min-32-characters-long';
+    // =========================================================================
+    // Change Password Tests
+    // =========================================================================
+    describe('changePassword', () => {
+        it('should change password with correct current password', async () => {
+            const currentHash = await bcrypt.hash('OldPassword123', 12);
 
-            const token = jwt.sign({ ...payload, type: 'access' }, secret, { expiresIn: '15m' });
-            const decoded = jwt.verify(token, secret) as any;
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                password: currentHash,
+            });
+            mockPrisma.user.update.mockResolvedValue({});
+            mockPrisma.session.deleteMany.mockResolvedValue({ count: 1 });
 
-            expect(decoded.userId).toBe(payload.userId);
-            expect(decoded.email).toBe(payload.email);
-            expect(decoded.type).toBe('access');
+            await authService.changePassword('user-123', 'OldPassword123', 'NewPassword456');
+
+            expect(mockPrisma.user.update).toHaveBeenCalled();
+            expect(mockPrisma.session.deleteMany).toHaveBeenCalledWith({
+                where: { userId: 'user-123' },
+            });
         });
 
-        it('should generate valid refresh token', () => {
-            const payload = { userId: 'user-123', email: 'test@example.com', role: 'USER' };
-            const secret = 'test-secret-min-32-characters-long';
+        it('should throw error for incorrect current password', async () => {
+            const currentHash = await bcrypt.hash('CorrectPassword', 12);
 
-            const token = jwt.sign({ ...payload, type: 'refresh' }, secret, { expiresIn: '7d' });
-            const decoded = jwt.verify(token, secret) as any;
+            mockPrisma.user.findUnique.mockResolvedValue({
+                id: 'user-123',
+                password: currentHash,
+            });
 
-            expect(decoded.type).toBe('refresh');
-            expect(decoded.exp).toBeGreaterThan(Date.now() / 1000 + 86400); // At least 1 day
-        });
-
-        it('should reject expired tokens', () => {
-            const payload = { userId: 'user-123', type: 'access' };
-            const secret = 'test-secret-min-32-characters-long';
-
-            const token = jwt.sign(payload, secret, { expiresIn: '-1s' }); // Already expired
-
-            expect(() => jwt.verify(token, secret)).toThrow();
-        });
-    });
-
-    describe('logout', () => {
-        it('should delete session on logout', async () => {
-            (prismaMock.session.delete as unknown as MockFunction).mockResolvedValue(createMockSession());
-
-            await prismaMock.session.delete({ where: { token: 'mock-token' } });
-
-            expect(prismaMock.session.delete).toHaveBeenCalled();
-        });
-    });
-
-    describe('refresh token rotation', () => {
-        it('should invalidate old refresh token after use', async () => {
-            const oldSession = createMockSession();
-
-            (prismaMock.session.findUnique as unknown as MockFunction).mockResolvedValue(oldSession);
-            (prismaMock.session.delete as unknown as MockFunction).mockResolvedValue(oldSession);
-            (prismaMock.session.create as unknown as MockFunction).mockResolvedValue(createMockSession());
-
-            // Simulate using refresh token
-            await prismaMock.session.delete({ where: { refreshToken: oldSession.refreshToken } });
-
-            expect(prismaMock.session.delete).toHaveBeenCalled();
+            await expect(
+                authService.changePassword('user-123', 'WrongPassword', 'NewPassword456')
+            ).rejects.toThrow('Current password is incorrect');
         });
     });
 });
