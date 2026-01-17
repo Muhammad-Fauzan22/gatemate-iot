@@ -63,6 +63,47 @@
 
 ---
 
+## 🔧 Hardware Setup Guide
+
+> 📖 **[PANDUAN LENGKAP HARDWARE →](docs/HARDWARE_GUIDE.md)**
+
+### Komponen Utama yang Dibutuhkan
+
+| Komponen | Spesifikasi | Est. Harga |
+|----------|-------------|------------|
+| ESP32 DevKit V1 | 30-pin, WiFi+BT | Rp 65.000 |
+| Relay Module 2CH | 5V, Optocoupler | Rp 25.000 |
+| ACS712 Current Sensor | 30A | Rp 25.000 |
+| IR Obstacle Sensor | E18-D80NK | Rp 40.000 |
+| Limit Switch | Micro switch | Rp 10.000 |
+| Motor Gerbang | DC 12V/24V | Rp 150.000 - 3.500.000 |
+| Power Supply | 5V 3A | Rp 35.000 |
+| Kabel & Konektor | AWG22, Terminal | Rp 125.000 |
+
+**Total Estimasi:** Rp 530.000 - Rp 4.850.000 (tergantung motor)
+
+### Quick Wiring Diagram
+
+```
+ESP32          RELAY          MOTOR
+┌────┐        ┌────┐         ┌────┐
+│G16 ├───────►│IN1 ├═════════╪ M+ │
+│G17 ├───────►│IN2 ├═════════╪ M- │
+│5V  ├───────►│VCC │         │    │
+│GND ├───────►│GND │         │    │
+└────┘        └────┘         └────┘
+```
+
+### Fitur Keamanan Hardware
+
+- ⚡ **Current Monitoring** - Deteksi motor stall
+- 🚧 **Obstacle Detection** - IR sensor anti-tabrakan  
+- 🔘 **Limit Switch** - Posisi buka/tutup maksimal
+- 🌡️ **Temperature Monitor** - Proteksi overheat
+- ⏱️ **Timeout Protection** - Max 30 detik operasi
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
