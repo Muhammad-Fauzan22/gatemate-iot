@@ -39,9 +39,7 @@ router.get('/',
         const [schedules, total] = await Promise.all([
             prisma.schedule.findMany({
                 where: {
-                    device: {
-                        userId,
-                    },
+                    userId, // Schedule directly linked to User
                 },
                 skip,
                 take: limit,
@@ -58,16 +56,17 @@ router.get('/',
             }),
             prisma.schedule.count({
                 where: {
-                    device: {
-                        userId,
-                    },
+                    userId,
                 },
             }),
         ]);
 
         res.json({
             success: true,
-            data: schedules,
+            data: schedules.map(s => ({
+                ...s,
+                days: s.recurrence ? JSON.parse(s.recurrence) : [], // Map recurrence -> days
+            })),
             pagination: {
                 page,
                 limit,
@@ -91,9 +90,7 @@ router.get('/:id',
         const schedule = await prisma.schedule.findFirst({
             where: {
                 id,
-                device: {
-                    userId,
-                },
+                userId,
             },
             include: {
                 device: {
@@ -112,7 +109,10 @@ router.get('/:id',
 
         res.json({
             success: true,
-            data: schedule,
+            data: {
+                ...schedule,
+                days: schedule.recurrence ? JSON.parse(schedule.recurrence) : [],
+            },
         });
     })
 );
@@ -125,11 +125,14 @@ router.post('/',
     validate({ body: createScheduleSchema }),
     asyncHandler(async (req: Request, res: Response) => {
         const userId = (req as any).user.userId;
-        const { name, deviceId, action, time, days, enabled, repeat } = req.body;
+        const { name, deviceId, action, time, days, enabled } = req.body;
 
         // Verify device ownership
         const device = await prisma.device.findFirst({
-            where: { id: deviceId, userId },
+            where: {
+                id: deviceId,
+                users: { some: { userId } }
+            },
         });
 
         if (!device) {
@@ -140,11 +143,11 @@ router.post('/',
             data: {
                 name,
                 deviceId,
+                userId,
                 action,
                 time,
-                days: JSON.stringify(days),
-                enabled,
-                repeat,
+                recurrence: JSON.stringify(days || []), // Map days -> recurrence
+                enabled: enabled !== undefined ? enabled : true,
             },
             include: {
                 device: {
@@ -168,7 +171,10 @@ router.post('/',
         res.status(201).json({
             success: true,
             message: 'Jadwal berhasil dibuat',
-            data: schedule,
+            data: {
+                ...schedule,
+                days: days || [],
+            },
         });
     })
 );
@@ -188,9 +194,7 @@ router.put('/:id',
         const existing = await prisma.schedule.findFirst({
             where: {
                 id,
-                device: {
-                    userId,
-                },
+                userId,
             },
         });
 
@@ -202,7 +206,7 @@ router.put('/:id',
         if (name !== undefined) updateData.name = name;
         if (action !== undefined) updateData.action = action;
         if (time !== undefined) updateData.time = time;
-        if (days !== undefined) updateData.days = JSON.stringify(days);
+        if (days !== undefined) updateData.recurrence = JSON.stringify(days); // Map days -> recurrence
         if (enabled !== undefined) updateData.enabled = enabled;
 
         const schedule = await prisma.schedule.update({
@@ -230,7 +234,10 @@ router.put('/:id',
         res.json({
             success: true,
             message: 'Jadwal berhasil diperbarui',
-            data: schedule,
+            data: {
+                ...schedule,
+                days: schedule.recurrence ? JSON.parse(schedule.recurrence) : [],
+            },
         });
     })
 );
@@ -249,16 +256,7 @@ router.delete('/:id',
         const existing = await prisma.schedule.findFirst({
             where: {
                 id,
-                device: {
-                    userId,
-                },
-            },
-            include: {
-                device: {
-                    select: {
-                        name: true,
-                    },
-                },
+                userId,
             },
         });
 
@@ -298,10 +296,9 @@ router.patch('/:id/toggle',
         const existing = await prisma.schedule.findFirst({
             where: {
                 id,
-                device: {
-                    userId,
-                },
+                userId,
             },
+            include: { device: { select: { id: true, name: true } } }
         });
 
         if (!existing) {
@@ -324,7 +321,10 @@ router.patch('/:id/toggle',
         res.json({
             success: true,
             message: schedule.enabled ? 'Jadwal diaktifkan' : 'Jadwal dinonaktifkan',
-            data: schedule,
+            data: {
+                ...schedule,
+                days: schedule.recurrence ? JSON.parse(schedule.recurrence) : [],
+            },
         });
     })
 );
@@ -341,7 +341,10 @@ router.get('/device/:deviceId',
 
         // Verify device ownership
         const device = await prisma.device.findFirst({
-            where: { id: deviceId, userId },
+            where: {
+                id: deviceId,
+                users: { some: { userId } }
+            },
         });
 
         if (!device) {
@@ -355,7 +358,10 @@ router.get('/device/:deviceId',
 
         res.json({
             success: true,
-            data: schedules,
+            data: schedules.map(s => ({
+                ...s,
+                days: s.recurrence ? JSON.parse(s.recurrence) : [],
+            })),
         });
     })
 );

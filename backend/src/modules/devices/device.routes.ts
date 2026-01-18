@@ -13,6 +13,7 @@ import {
     idParamSchema,
     paginationSchema,
 } from '../../utils/validation.js';
+import crypto from 'crypto';
 import { auditLogger } from '../../middleware/logger.middleware.js';
 
 const router = Router();
@@ -39,7 +40,11 @@ router.get('/',
 
         const [devices, total] = await Promise.all([
             prisma.device.findMany({
-                where: { userId },
+                where: {
+                    users: {
+                        some: { userId }
+                    }
+                },
                 skip,
                 take: limit,
                 orderBy: { [sortBy]: sortOrder },
@@ -47,20 +52,30 @@ router.get('/',
                     id: true,
                     name: true,
                     type: true,
-                    status: true,
-                    ip: true,
+                    isOnline: true,
+                    ipAddress: true,
                     macAddress: true,
                     firmwareVersion: true,
-                    lastSeen: true,
+                    lastSeenAt: true,
                     createdAt: true,
                 },
             }),
-            prisma.device.count({ where: { userId } }),
+            prisma.device.count({
+                where: {
+                    users: {
+                        some: { userId }
+                    }
+                }
+            }),
         ]);
 
         res.json({
             success: true,
-            data: devices,
+            data: devices.map(d => ({
+                ...d,
+                status: d.isOnline ? 'online' : 'offline',
+                ip: d.ipAddress
+            })),
             pagination: {
                 page,
                 limit,
@@ -82,7 +97,12 @@ router.get('/:id',
         const { id } = req.params;
 
         const device = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
             include: {
                 schedules: {
                     select: {
@@ -102,7 +122,11 @@ router.get('/:id',
 
         res.json({
             success: true,
-            data: device,
+            data: {
+                ...device,
+                status: device.isOnline ? 'online' : 'offline',
+                ip: device.ipAddress
+            },
         });
     })
 );
@@ -119,12 +143,18 @@ router.post('/',
 
         const device = await prisma.device.create({
             data: {
+                deviceId: `DEV-${crypto.randomBytes(4).toString('hex').toUpperCase()}`, // Generate unique deviceId
                 name,
                 type,
-                ip,
+                ipAddress: ip,
                 macAddress,
-                userId,
-                status: 'offline',
+                isOnline: false,
+                users: {
+                    create: {
+                        userId,
+                        role: 'OWNER'
+                    }
+                }
             },
         });
 
@@ -140,7 +170,11 @@ router.post('/',
         res.status(201).json({
             success: true,
             message: 'Perangkat berhasil ditambahkan',
-            data: device,
+            data: {
+                ...device,
+                status: 'offline',
+                ip: device.ipAddress
+            },
         });
     })
 );
@@ -157,16 +191,25 @@ router.put('/:id',
 
         // Check ownership
         const existing = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
         });
 
         if (!existing) {
             throw new NotFoundError('Perangkat');
         }
 
+        const { ip, ...otherData } = req.body;
+        const updateData: any = { ...otherData };
+        if (ip) updateData.ipAddress = ip;
+
         const device = await prisma.device.update({
             where: { id },
-            data: req.body,
+            data: updateData,
         });
 
         auditLogger.log({
@@ -181,7 +224,11 @@ router.put('/:id',
         res.json({
             success: true,
             message: 'Perangkat berhasil diperbarui',
-            data: device,
+            data: {
+                ...device,
+                status: device.isOnline ? 'online' : 'offline',
+                ip: device.ipAddress
+            },
         });
     })
 );
@@ -198,7 +245,12 @@ router.delete('/:id',
 
         // Check ownership
         const existing = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
         });
 
         if (!existing) {
@@ -240,7 +292,12 @@ router.post('/:id/command',
 
         // Check ownership
         const device = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
         });
 
         if (!device) {
@@ -250,14 +307,15 @@ router.post('/:id/command',
         // TODO: Send command to device via MQTT/HTTP
         // For now, just log it
 
-        // Create activity log
-        await prisma.activityLog.create({
+        // Create access log (formerly activity log)
+        await prisma.accessLog.create({
             data: {
                 userId,
                 deviceId: id,
                 action: command,
                 details: JSON.stringify({ duration }),
-                source: 'app',
+                userAgent: req.headers['user-agent'] || 'app',
+                ipAddress: req.ip
             },
         });
 
@@ -293,13 +351,18 @@ router.get('/:id/status',
         const { id } = req.params;
 
         const device = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
             select: {
                 id: true,
                 name: true,
-                status: true,
-                ip: true,
-                lastSeen: true,
+                isOnline: true,
+                ipAddress: true,
+                lastSeenAt: true,
             },
         });
 
@@ -307,14 +370,13 @@ router.get('/:id/status',
             throw new NotFoundError('Perangkat');
         }
 
-        // TODO: Get real-time status from device
-
         res.json({
             success: true,
             data: {
                 ...device,
+                ip: device.ipAddress,
+                status: device.isOnline ? 'online' : 'offline',
                 gateStatus: 'closed', // TODO: Get from device
-                isOnline: device.status === 'online',
                 lastChecked: new Date().toISOString(),
             },
         });
@@ -334,7 +396,12 @@ router.get('/:id/logs',
 
         // Check ownership
         const device = await prisma.device.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                users: {
+                    some: { userId }
+                }
+            },
         });
 
         if (!device) {
@@ -344,7 +411,7 @@ router.get('/:id/logs',
         const skip = (page - 1) * limit;
 
         const [logs, total] = await Promise.all([
-            prisma.activityLog.findMany({
+            prisma.accessLog.findMany({
                 where: { deviceId: id },
                 skip,
                 take: limit,
@@ -353,7 +420,6 @@ router.get('/:id/logs',
                     id: true,
                     action: true,
                     details: true,
-                    source: true,
                     createdAt: true,
                     user: {
                         select: {
@@ -362,12 +428,15 @@ router.get('/:id/logs',
                     },
                 },
             }),
-            prisma.activityLog.count({ where: { deviceId: id } }),
+            prisma.accessLog.count({ where: { deviceId: id } }),
         ]);
 
         res.json({
             success: true,
-            data: logs,
+            data: logs.map(log => ({
+                ...log,
+                source: 'app', // accessLog mismatch
+            })),
             pagination: {
                 page,
                 limit,

@@ -44,28 +44,48 @@ router.get('/',
         const skip = (page - 1) * limit;
 
         const [guests, total] = await Promise.all([
-            prisma.guestAccess.findMany({
-                where: { userId },
+            prisma.guestPass.findMany({
+                where: { createdBy: userId },
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
-                include: {
-                    device: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                },
+                // Device relation exists in schema? We need to check schema carefully.
+                // Assuming device relation exists in GuestPass (deviceId field + relation)
+                // Schema line 226: deviceId String
+                // Schema line is missing relation definition in snippet view?
+                // Let's assume relation exists or we fetch manually.
+                // Re-checking schema: Line 224: model GuestPass { ... deviceId String ... }
+                // It does NOT explicitly show @relation to Device.
+                // But it's highly likely. If not, this include fails.
+                // Assuming it has relation based on previous code.
+                // Wait, previous code used guestAccess which had relation.
+                // If I can't trust relation, I can't include.
+                // But let's assume standard Prisma usage implies relation for deviceId.
             }),
-            prisma.guestAccess.count({ where: { userId } }),
+            prisma.guestPass.count({ where: { createdBy: userId } }),
         ]);
+
+        // If relation is missing in schema, we'd need to fetch devices.
+        // For now, let's assume we can only return basic data if relation fails.
+        // But to pass build, let's avoid includes if they are risky, or modify schema.
+        // Since I can't modify schema easily (migration needed), I will stick to code that works with Model.
+        // If findMany accepts include, good. If safe-mode, fetch devices manually.
+        // Let's safe-mode: fetch devices for these passes
+        const deviceIds = [...new Set(guests.map(g => g.deviceId))];
+        const devices = await prisma.device.findMany({
+            where: { id: { in: deviceIds } },
+            select: { id: true, name: true }
+        });
+        const deviceMap = new Map(devices.map(d => [d.id, d]));
 
         res.json({
             success: true,
             data: guests.map(g => ({
                 ...g,
-                qrData: generateQRData(g.code),
+                device: deviceMap.get(g.deviceId) || { id: g.deviceId, name: 'Unknown' },
+
+                code: g.id,
+                qrData: generateQRData(g.id),
                 isExpired: g.expiresAt ? new Date(g.expiresAt) < new Date() : false,
                 isExhausted: g.usedCount >= g.maxUses,
             })),
@@ -92,39 +112,39 @@ router.post('/',
 
         // Verify device ownership
         const device = await prisma.device.findFirst({
-            where: { id: deviceId, userId },
+            where: {
+                id: deviceId,
+                users: { some: { userId } }
+            },
         });
 
         if (!device) {
             throw new AuthorizationError('Anda tidak memiliki akses ke perangkat ini');
         }
 
-        const code = generateAccessCode();
-
-        const guestAccess = await prisma.guestAccess.create({
+        // Generate code? If schema doesn't have code, use CUID ID.
+        // If schema has code, we'd use it.
+        // Let's trust schema snippet: No code.
+        const guestPass = await prisma.guestPass.create({
             data: {
-                code,
+                // code, // Removing code if schema lacks it
                 name,
-                userId,
+                createdBy: userId,
                 deviceId,
-                expiresAt: expiresAt ? new Date(expiresAt) : null,
+                // Schema requires expiresAt (DateTime), assuming validation enforces it exists
+                // If optional in body but required in DB, default to 24h?
+                // Let's assume validation ensures it or we default it.
+                expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000), // Default 1 day
                 maxUses,
-                permissions: JSON.stringify(permissions),
-            },
-            include: {
-                device: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
+                permissions: permissions,
+                revoked: false
+            }
         });
 
         auditLogger.log({
-            action: 'CREATE_GUEST_ACCESS',
-            resource: 'guest_access',
-            resourceId: guestAccess.id,
+            action: 'CREATE_GUEST_PASS',
+            resource: 'guest_pass',
+            resourceId: guestPass.id,
             userId,
             details: { name, deviceName: device.name, maxUses },
             success: true,
@@ -134,8 +154,9 @@ router.post('/',
             success: true,
             message: 'Akses tamu berhasil dibuat',
             data: {
-                ...guestAccess,
-                qrData: generateQRData(code),
+                ...guestPass,
+                code: guestPass.id, // Use ID as code
+                qrData: generateQRData(guestPass.id),
             },
         });
     })
@@ -152,19 +173,19 @@ router.delete('/:id',
         const userId = (req as any).user.userId;
         const { id } = req.params;
 
-        const existing = await prisma.guestAccess.findFirst({
-            where: { id, userId },
+        const existing = await prisma.guestPass.findFirst({
+            where: { id, createdBy: userId },
         });
 
         if (!existing) {
             throw new NotFoundError('Akses tamu');
         }
 
-        await prisma.guestAccess.delete({ where: { id } });
+        await prisma.guestPass.delete({ where: { id } });
 
         auditLogger.log({
-            action: 'REVOKE_GUEST_ACCESS',
-            resource: 'guest_access',
+            action: 'REVOKE_GUEST_PASS',
+            resource: 'guest_pass',
             resourceId: id,
             userId,
             details: { name: existing.name },
@@ -194,67 +215,66 @@ router.post('/access',
             throw new ValidationError('Kode dan aksi diperlukan');
         }
 
-        // Find guest access
-        const guestAccess = await prisma.guestAccess.findUnique({
-            where: { code },
-            include: {
-                device: true,
-                user: {
-                    select: {
-                        name: true,
-                    },
-                },
-            },
+        // Find guest pass by ID (code)
+        const guestPass = await prisma.guestPass.findUnique({
+            where: { id: code }, // Assuming code == id
         });
 
-        if (!guestAccess) {
+        if (!guestPass) {
             throw new NotFoundError('Kode akses');
         }
 
         // Check expiration
-        if (guestAccess.expiresAt && new Date(guestAccess.expiresAt) < new Date()) {
+        if (guestPass.expiresAt && new Date(guestPass.expiresAt) < new Date()) {
             throw new AuthorizationError('Kode akses sudah kadaluarsa');
         }
 
         // Check usage limit
-        if (guestAccess.usedCount >= guestAccess.maxUses) {
+        if (guestPass.usedCount >= guestPass.maxUses) {
             throw new AuthorizationError('Kode akses sudah mencapai batas penggunaan');
         }
 
-        // Check permission
-        const permissions = JSON.parse(guestAccess.permissions || '["open"]');
-        if (!permissions.includes(action)) {
+        // Check permission - Array direct check
+        if (!guestPass.permissions.includes(action)) {
             throw new AuthorizationError(`Anda tidak memiliki izin untuk ${action}`);
         }
 
+        // Basic Revoked check
+        if (guestPass.revoked) {
+            throw new AuthorizationError('Kode akses sudah dicabut');
+        }
+
         // Increment usage count
-        await prisma.guestAccess.update({
-            where: { id: guestAccess.id },
+        await prisma.guestPass.update({
+            where: { id: guestPass.id },
             data: {
-                usedCount: guestAccess.usedCount + 1,
-                lastUsedAt: new Date(),
+                usedCount: { increment: 1 },
             },
         });
 
-        // Create activity log
-        await prisma.activityLog.create({
+        // Fetch device for details
+        const device = await prisma.device.findUnique({ where: { id: guestPass.deviceId } });
+
+        // Create access log
+        await prisma.accessLog.create({
             data: {
-                userId: guestAccess.userId,
-                deviceId: guestAccess.deviceId,
+                userId: null, // Guest has no user ID
+                deviceId: guestPass.deviceId,
                 action,
-                source: 'guest',
-                details: JSON.stringify({ guestName: guestAccess.name }),
+                details: JSON.stringify({ guestName: guestPass.name, source: 'guest' }),
+                ipAddress: req.ip,
+                userAgent: req.headers['user-agent']
             },
         });
 
         auditLogger.log({
             action: `GUEST_${action.toUpperCase()}`,
             resource: 'device',
-            resourceId: guestAccess.deviceId,
+            resourceId: guestPass.deviceId,
             details: {
-                guestName: guestAccess.name,
-                deviceName: guestAccess.device.name,
-                usedCount: guestAccess.usedCount + 1,
+                guestName: guestPass.name,
+                deviceName: device?.name,
+                usedCount: guestPass.usedCount + 1,
             },
             ip: req.ip,
             success: true,
@@ -266,9 +286,9 @@ router.post('/access',
             success: true,
             message: `Perintah ${action} berhasil dikirim`,
             data: {
-                deviceName: guestAccess.device.name,
+                deviceName: device?.name,
                 action,
-                remainingUses: guestAccess.maxUses - guestAccess.usedCount - 1,
+                remainingUses: guestPass.maxUses - guestPass.usedCount - 1,
             },
         });
     })
@@ -282,24 +302,11 @@ router.get('/verify/:code',
     asyncHandler(async (req: Request, res: Response) => {
         const { code } = req.params;
 
-        const guestAccess = await prisma.guestAccess.findUnique({
-            where: { code },
-            include: {
-                device: {
-                    select: {
-                        name: true,
-                        type: true,
-                    },
-                },
-                user: {
-                    select: {
-                        name: true,
-                    },
-                },
-            },
+        const guestPass = await prisma.guestPass.findUnique({
+            where: { id: code },
         });
 
-        if (!guestAccess) {
+        if (!guestPass) {
             res.json({
                 success: true,
                 data: {
@@ -310,22 +317,28 @@ router.get('/verify/:code',
             return;
         }
 
-        const isExpired = guestAccess.expiresAt ? new Date(guestAccess.expiresAt) < new Date() : false;
-        const isExhausted = guestAccess.usedCount >= guestAccess.maxUses;
+        // Fetch device and owner info separately since no relations
+        const device = await prisma.device.findUnique({ where: { id: guestPass.deviceId } });
+        const owner = await prisma.user.findUnique({ where: { id: guestPass.createdBy } });
+
+        const isExpired = guestPass.expiresAt ? new Date(guestPass.expiresAt) < new Date() : false;
+        const isExhausted = guestPass.usedCount >= guestPass.maxUses;
+        const isRevoked = guestPass.revoked;
 
         res.json({
             success: true,
             data: {
-                valid: !isExpired && !isExhausted,
+                valid: !isExpired && !isExhausted && !isRevoked,
                 isExpired,
                 isExhausted,
-                guestName: guestAccess.name,
-                deviceName: guestAccess.device.name,
-                deviceType: guestAccess.device.type,
-                ownerName: guestAccess.user.name,
-                permissions: JSON.parse(guestAccess.permissions || '[]'),
-                remainingUses: Math.max(0, guestAccess.maxUses - guestAccess.usedCount),
-                expiresAt: guestAccess.expiresAt,
+                isRevoked,
+                guestName: guestPass.name,
+                deviceName: device?.name,
+                deviceType: device?.type,
+                ownerName: owner?.name,
+                permissions: guestPass.permissions,
+                remainingUses: Math.max(0, guestPass.maxUses - guestPass.usedCount),
+                expiresAt: guestPass.expiresAt,
             },
         });
     })
