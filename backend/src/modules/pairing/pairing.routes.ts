@@ -54,7 +54,7 @@ router.get('/scan', authMiddleware, async (req: AuthRequest, res: Response, next
 // Generate pairing code (called by ESP32 setup)
 router.post('/code', async (req, res, next) => {
     try {
-        const { deviceId, mac: _mac } = req.body;
+        const { deviceId } = req.body;
 
         if (!deviceId) {
             return res.status(400).json({ error: 'Device ID required' });
