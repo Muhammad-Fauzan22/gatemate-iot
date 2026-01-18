@@ -110,7 +110,7 @@ export function createRateLimiter(options: RateLimitOptions): RequestHandler {
                     }
                 }
 
-                return originalEnd.apply(res, args);
+                return originalEnd.apply(res, args as unknown as Parameters<typeof originalEnd>);
             };
         }
 

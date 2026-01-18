@@ -10,16 +10,16 @@ import { config } from './config/env.js';
 
 // Middleware imports
 import {
-    helmetMiddleware,
     corsMiddleware,
+    securityHeaders,
+    customSecurityHeaders,
+    sanitizeRequest,
+} from './middleware/security.middleware.js';
+import {
     apiLimiter,
     authLimiter,
     commandLimiter,
-    guestLimiter,
-    sanitizeInput,
-    additionalSecurityHeaders,
-    requestIdMiddleware,
-} from './middleware/security.middleware.js';
+} from './middleware/ratelimit.middleware.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { requestLogger, logger } from './middleware/logger.middleware.js';
 
@@ -62,27 +62,24 @@ const io = new SocketIOServer(httpServer, {
 // Global Middleware (Order Matters!)
 // =============================================================================
 
-// 1. Request ID for tracing
-app.use(requestIdMiddleware);
+// 1. Security headers (helmet)
+app.use(securityHeaders);
+app.use(customSecurityHeaders);
 
-// 2. Security headers
-app.use(helmetMiddleware);
-app.use(additionalSecurityHeaders);
-
-// 3. CORS
+// 2. CORS
 app.use(corsMiddleware);
 
-// 4. Request logging
+// 3. Request logging
 app.use(requestLogger);
 
-// 5. Body parsing with size limits
+// 4. Body parsing with size limits
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// 6. Input sanitization
-app.use(sanitizeInput);
+// 5. Input sanitization
+app.use(sanitizeRequest);
 
-// 7. General rate limiting
+// 6. General rate limiting
 app.use('/api/', apiLimiter);
 
 // =============================================================================
@@ -115,8 +112,8 @@ app.use('/api/v1/commands', commandLimiter, commandRouter);
 // Schedule management
 app.use('/api/v1/schedules', scheduleRouter);
 
-// Guest access with guest-specific rate limiting
-app.use('/api/v1/guest', guestLimiter, guestRouter);
+// Guest access
+app.use('/api/v1/guest', guestRouter);
 
 // Device pairing
 app.use('/api/v1/pairing', pairingRouter);
@@ -209,8 +206,8 @@ process.on('uncaughtException', (error) => {
     shutdown();
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled Rejection:', reason);
 });
 
 // Start server

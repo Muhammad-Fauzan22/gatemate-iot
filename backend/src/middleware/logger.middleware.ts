@@ -89,7 +89,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
             contentLength: res.getHeader('content-length'),
         });
 
-        return originalEnd.apply(res, args);
+        return originalEnd.apply(res, args as unknown as Parameters<typeof originalEnd>);
     };
 
     next();
