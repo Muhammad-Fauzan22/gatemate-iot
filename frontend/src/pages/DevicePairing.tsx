@@ -5,6 +5,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+interface DiscoveredDevice {
+    deviceId: string;
+    name: string;
+    ip: string;
+    paired: boolean;
+}
+
 export default function DevicePairing() {
     const navigate = useNavigate();
     const [step, setStep] = useState<'scan' | 'manual' | 'connecting' | 'success'>('scan');
@@ -12,7 +19,7 @@ export default function DevicePairing() {
     const [pairingCode, setPairingCode] = useState('');
     const [deviceName, setDeviceName] = useState('My Gate');
     const [error, setError] = useState('');
-    const [discoveredDevices, setDiscoveredDevices] = useState<any[]>([]);
+    const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredDevice[]>([]);
 
     const handleScan = async () => {
         // Simulate device discovery
@@ -34,7 +41,7 @@ export default function DevicePairing() {
             // Simulate pairing
             await new Promise(r => setTimeout(r, 2000));
             setStep('success');
-        } catch (err) {
+        } catch {
             setError('Gagal terhubung ke device');
             setStep('manual');
         }
@@ -52,7 +59,7 @@ export default function DevicePairing() {
         try {
             await new Promise(r => setTimeout(r, 2000));
             setStep('success');
-        } catch (err) {
+        } catch {
             setError('Kode pairing tidak valid');
             setStep('scan');
         }

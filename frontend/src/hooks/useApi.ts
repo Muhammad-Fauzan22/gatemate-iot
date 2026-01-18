@@ -300,7 +300,7 @@ export const offlineQueue = new OfflineQueue();
 
 export function useNetworkStatus() {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
-    const [pendingActions, setPendingActions] = useState(offlineQueue.getQueueLength());
+    const [pendingActions, _setPendingActions] = useState(offlineQueue.getQueueLength());
 
     useState(() => {
         const handleOnline = () => setIsOnline(true);

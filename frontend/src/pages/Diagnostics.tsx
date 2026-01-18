@@ -2,7 +2,7 @@
 // GATEMATE Frontend - Diagnostics Page
 // =============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useGateStore } from '@/stores/gateStore';
 
@@ -26,7 +26,6 @@ export default function Diagnostics() {
         { name: 'Motor', status: 'ok', message: `Current: ${gate?.sensors.current || 2.5}A` },
         { name: 'Temperature', status: 'ok', message: `${gate?.sensors.temperature || 32}°C` },
     ]);
-    const [recommendations, setRecommendations] = useState<string[]>([]);
 
     const runDiagnostics = async () => {
         setIsRunning(true);

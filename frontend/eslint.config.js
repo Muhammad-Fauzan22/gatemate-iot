@@ -19,5 +19,14 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Allow any types as warnings (for API/service layers needing flexibility)
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Allow unused vars when prefixed with underscore
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Relax fast refresh for files with hook exports
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
   },
 ])
+

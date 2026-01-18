@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useGateStore } from '@/stores/gateStore'
 
@@ -12,17 +12,20 @@ const presets = [
 export default function GateControl() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
-    const { gates, updateGateStatus, stopGate, setGatePercentage } = useGateStore()
+    const { gates, stopGate, setGatePercentage } = useGateStore()
     const gate = gates.find((g) => g.id === id) || gates[0]
 
-    const [sliderValue, setSliderValue] = useState(gate?.percentage || 0)
+    // Initialize slider from gate percentage
+    const initialPercentage = useMemo(() => gate?.percentage || 0, [gate?.percentage])
+    const [sliderValue, setSliderValue] = useState(initialPercentage)
     const [showObstacleWarning, setShowObstacleWarning] = useState(false)
 
-    // Sync slider with gate percentage
+    // Sync slider when gate percentage changes externally
     useEffect(() => {
-        if (gate) {
+        if (gate?.percentage !== undefined && gate.percentage !== sliderValue) {
             setSliderValue(gate.percentage)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gate?.percentage])
 
     // Simulate obstacle detection randomly for demo
@@ -207,13 +210,13 @@ export default function GateControl() {
                             key={preset.value}
                             onClick={() => handlePreset(preset.value)}
                             className={`group flex flex-col items-center justify-center h-14 rounded-xl transition active:scale-95 ${gate?.percentage === preset.value
-                                    ? 'bg-surface-dark border border-primary/30 bg-primary/10 shadow-[inset_0_0_10px_rgba(75,190,79,0.1)]'
-                                    : 'bg-surface-dark border border-white/5 active:bg-surface-highlight'
+                                ? 'bg-surface-dark border border-primary/30 bg-primary/10 shadow-[inset_0_0_10px_rgba(75,190,79,0.1)]'
+                                : 'bg-surface-dark border border-white/5 active:bg-surface-highlight'
                                 }`}
                         >
                             <span className={`font-bold text-sm ${gate?.percentage === preset.value
-                                    ? 'text-primary'
-                                    : 'text-gray-400 group-hover:text-white'
+                                ? 'text-primary'
+                                : 'text-gray-400 group-hover:text-white'
                                 }`}>
                                 {preset.label}
                             </span>

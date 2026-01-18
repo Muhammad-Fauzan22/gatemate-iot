@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { X, Download, Smartphone } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -16,17 +16,26 @@ declare global {
     }
 }
 
+// Check if running in standalone mode
+function getIsStandalone() {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(display-mode: standalone)').matches
+}
+
+function subscribeToStandalone(callback: () => void) {
+    const mediaQuery = window.matchMedia('(display-mode: standalone)')
+    mediaQuery.addEventListener('change', callback)
+    return () => mediaQuery.removeEventListener('change', callback)
+}
+
 export default function InstallPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
     const [isVisible, setIsVisible] = useState(false)
-    const [isInstalled, setIsInstalled] = useState(false)
+    const isInstalled = useSyncExternalStore(subscribeToStandalone, getIsStandalone, () => false)
 
     useEffect(() => {
-        // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            setIsInstalled(true)
-            return
-        }
+        // Skip if already installed
+        if (isInstalled) return
 
         // Check if prompt was dismissed before
         const dismissed = localStorage.getItem('pwa_prompt_dismissed')
@@ -47,16 +56,17 @@ export default function InstallPrompt() {
         window.addEventListener('beforeinstallprompt', handler)
 
         // Check if app was installed
-        window.addEventListener('appinstalled', () => {
-            setIsInstalled(true)
+        const installHandler = () => {
             setIsVisible(false)
             localStorage.setItem('pwa_installed', 'true')
-        })
+        }
+        window.addEventListener('appinstalled', installHandler)
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handler)
+            window.removeEventListener('appinstalled', installHandler)
         }
-    }, [])
+    }, [isInstalled])
 
     const handleInstall = async () => {
         if (!deferredPrompt) return

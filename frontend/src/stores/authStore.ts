@@ -24,13 +24,13 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set, get) => ({
+        (set, _get) => ({
             user: null,
             token: null,
             isAuthenticated: false,
             isLoading: true,
 
-            login: async (email: string, password: string) => {
+            login: async (email: string, _password: string) => {
                 try {
                     set({ isLoading: true })
 
