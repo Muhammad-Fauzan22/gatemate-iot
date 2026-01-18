@@ -1,5 +1,5 @@
 # SKEMA SISTEM KOMPREHENSIF
-## GATEMATE Smart Gate Control System v2.0
+## GATEMATE Smart Gate Control System v2.0 (UX-Driven Architecture)
 
 ---
 
@@ -19,14 +19,14 @@
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Architecture Layers
+### 1.2 Architecture Layers (Optimized for UX)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              CLOUD LAYER                                │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
 │  │ Firebase │  │ Supabase │  │ Vercel   │  │ MQTT     │               │
-│  │ Auth     │  │ Database │  │ Hosting  │  │ Broker   │               │
+│  │ Auth     │  │ Database │  │ Edge     │  │ Broker   │               │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
 └───────┼─────────────┼─────────────┼─────────────┼───────────────────────┘
         │ HTTPS       │ API         │ CDN         │ MQTT/TLS
@@ -34,7 +34,7 @@
 │                         APPLICATION LAYER                               │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │
 │  │   PWA Frontend   │  │  Mobile App      │  │  Admin Portal    │      │
-│  │   (React/Vite)   │  │  (React Native)  │  │  (Next.js)       │      │
+│  │ (Offline Ready)  │  │  (Native UX)     │  │  (Analytics)     │      │
 │  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘      │
 └───────────┼──────────────────────┼──────────────────────┼───────────────┘
             │ WebSocket            │ REST API             │ GraphQL
@@ -75,7 +75,7 @@ graph TD
     F --> I[24/7 Support]
 ```
 
-### 2.2 First-Time Setup Flow
+### 2.2 First-Time Setup Flow (Zero-Friction UX)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -84,36 +84,29 @@ graph TD
 │                                                                         │
 │  Step 1: Splash Screen                                                  │
 │  ┌───────────────────┐                                                  │
-│  │     GATEMATE      │  • Logo animation                                │
+│  │     GATEMATE      │  • Logo animation (Lottie)                       │
 │  │    v2.0 Loading   │  • Version check                                 │
 │  └───────────────────┘  • Connectivity test                             │
 │            ▼                                                            │
 │  Step 2: License Verification                                           │
 │  ┌───────────────────┐                                                  │
-│  │ Enter License Key │  • Manual input                                  │
-│  │ [GMT-XXXX-YYYY]   │  • QR Code scan                                  │
-│  │                   │  • Online verification                           │
+│  │ Enter License Key │  • Auto-paste support                            │
+│  │ [GMT-XXXX-YYYY]   │  • QR Code scan (Camera API)                     │
+│  │                   │  • Haptic feedback on success                    │
 │  └───────────────────┘                                                  │
 │            ▼                                                            │
-│  Step 3: Admin Account                                                  │
+│  Step 3: Hardware Setup                                                 │
 │  ┌───────────────────┐                                                  │
-│  │ Create Admin      │  • Email/Password                                │
-│  │ Setup 2FA         │  • Recovery key backup                           │
-│  │ Generate Keys     │  • Biometric enrollment                          │
+│  │ Connect to Device │  • Bluetooth LE Discovery                        │
+│  │ Calibrate Motor   │  • Real-time progress bar                        │
+│  │ Test Sensors      │  • Visual step-by-step guide                     │
 │  └───────────────────┘                                                  │
 │            ▼                                                            │
-│  Step 4: Hardware Setup                                                 │
+│  Step 4: Success Screen                                                 │
 │  ┌───────────────────┐                                                  │
-│  │ Connect to Device │  • WiFi pairing                                  │
-│  │ Calibrate Motor   │  • Limit switch setup                            │
-│  │ Test Sensors      │  • Safety calibration                            │
-│  └───────────────────┘                                                  │
-│            ▼                                                            │
-│  Step 5: Success Screen                                                 │
-│  ┌───────────────────┐                                                  │
-│  │ ✅ Setup Complete │  • Video tutorial                                │
-│  │   Start Using     │  • Download manual                               │
-│  │   GATEMATE        │  • Contact support                               │
+│  │ ✅ Setup Complete │  • Confetti animation                            │
+│  │   Start Using     │  • "Add to Home Screen" prompt                   │
+│  │   GATEMATE        │  • Single tap to Dashboard                       │
 │  └───────────────────┘                                                  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -131,71 +124,48 @@ sequenceDiagram
     participant A as App
     participant F as Firebase Auth
     participant S as Supabase DB
-    participant D as Device (ESP32)
     
     U->>A: Open App
-    A->>A: Check saved session
-    alt Session Valid
-        A->>F: Verify token
-        F-->>A: Token valid
-        A->>U: Show Dashboard
-    else No Session
+    A->>A: Check Biometric/Session
+    alt Biometric Valid
+        A->>U: Show Dashboard (Instant)
+    else Session Expired
         A->>U: Show Login
-        U->>A: Enter credentials
+        U->>A: Touch ID / Face ID
         A->>F: Authenticate
-        F-->>A: JWT tokens
-        A->>S: Fetch user data
-        S-->>A: User profile + devices
+        F-->>A: Token
         A->>U: Show Dashboard
     end
-    
-    U->>A: Control Gate
-    A->>D: Send MQTT command
-    D->>D: Execute action
-    D-->>A: Status update
-    A->>U: Show result + toast
 ```
 
-### 3.2 Gate Control Flow
+### 3.2 Gate Control Flow (Optimistic UX)
 
 ```
-User Action → App Validation → MQTT Publish → ESP32 Receive →
-→ Safety Check → Motor Control → Position Update → App Update → Toast Notify
-```
-
-**State Machine:**
-```
-┌──────────┐    open()    ┌──────────┐    reached()  ┌──────────┐
-│  CLOSED  │─────────────►│ OPENING  │──────────────►│   OPEN   │
-└──────────┘              └──────────┘               └──────────┘
-     ▲                         │                          │
-     │                    stop()│                         │
-     │                         ▼                          │
-     │                    ┌──────────┐                    │
-     │                    │ STOPPED  │                    │
-     │                    └──────────┘                    │
-     │                         │                          │
-     │◄────────────────────────┘                          │
-     │                    close()                         │
-     │                                                    │
-     │                    ┌──────────┐                    │
-     └────────────────────│ CLOSING  │◄───────────────────┘
-       reached()          └──────────┘     close()
+User Action ("Open") 
+    │
+    ├─► UI Immediate Update (State: "Opening...") [Optimistic]
+    ├─► Haptic Feedback (Vibrate 50ms)
+    │
+    ▼
+Network Request (MQTT)
+    │
+    ├─► Success: Keep "Opening" State -> "Open"
+    │
+    └─► Fail: Revert State + Show Toast ("Connection failed")
 ```
 
 ---
 
 ## 4. DATABASE SCHEMA (Supabase)
 
-### 4.1 Core Tables
+### 4.1 Core Tables with Performance Indexing
 
 ```sql
 -- Users (extends Firebase Auth)
 CREATE TABLE public.users (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     full_name TEXT NOT NULL,
-    phone TEXT,
-    role TEXT DEFAULT 'member',
+    preferences JSONB DEFAULT '{"theme": "system", "haptics": true}',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -204,241 +174,105 @@ CREATE TABLE public.devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     license_key TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
-    type TEXT CHECK (type IN ('sliding', 'swing', 'barrier')),
-    mac_address TEXT UNIQUE,
-    firmware_version TEXT,
-    is_online BOOLEAN DEFAULT false,
-    last_seen TIMESTAMPTZ,
+    status JSONB, -- Caching status for fast read
+    updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Device Users (M:N relationship)
-CREATE TABLE public.device_users (
-    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role TEXT DEFAULT 'member',
-    permissions JSONB DEFAULT '[]',
-    PRIMARY KEY (device_id, user_id)
-);
-
--- Activity Logs
-CREATE TABLE public.activity_logs (
-    id BIGSERIAL PRIMARY KEY,
-    device_id UUID REFERENCES devices(id),
-    user_id UUID REFERENCES users(id),
-    action TEXT NOT NULL,
-    details JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Schedules
-CREATE TABLE public.schedules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id UUID REFERENCES devices(id),
-    action TEXT CHECK (action IN ('open', 'close', 'partial')),
-    cron_expression TEXT,
-    is_enabled BOOLEAN DEFAULT true,
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Guest Access
+-- Guest Access (High Security)
 CREATE TABLE public.guest_access (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     device_id UUID REFERENCES devices(id),
     guest_name TEXT,
     qr_code_hash TEXT UNIQUE,
-    permissions TEXT[] DEFAULT ARRAY['open'],
-    valid_from TIMESTAMPTZ DEFAULT NOW(),
     valid_until TIMESTAMPTZ NOT NULL,
-    max_uses INT DEFAULT 1,
-    used_count INT DEFAULT 0,
-    created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE device_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE guest_access ENABLE ROW LEVEL SECURITY;
-```
-
-### 4.2 RLS Policies
-
-```sql
--- Users can only see their own data
-CREATE POLICY "Users view own data" ON users
-    FOR SELECT USING (auth.uid() = id);
-
--- Users can see devices they have access to
-CREATE POLICY "Users view accessible devices" ON devices
-    FOR SELECT USING (
-        id IN (
-            SELECT device_id FROM device_users 
-            WHERE user_id = auth.uid()
-        )
-    );
-
--- Device access control
-CREATE POLICY "Device users access" ON device_users
-    FOR SELECT USING (user_id = auth.uid());
+-- Indexes for Speed
+CREATE INDEX idx_devices_user ON device_users(user_id);
+CREATE INDEX idx_logs_device ON activity_logs(device_id, created_at DESC);
 ```
 
 ---
 
-## 5. API ENDPOINTS
+## 5. API ENDPOINTS (UX Optimized)
 
-### 5.1 REST API
+### 5.1 REST API (Cache-Control Enabled)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/devices` | List user's devices |
-| GET | `/api/devices/:id` | Get device details |
-| POST | `/api/devices/:id/control` | Control gate |
-| GET | `/api/devices/:id/logs` | Get activity logs |
-| GET | `/api/schedules` | List schedules |
-| POST | `/api/schedules` | Create schedule |
-| PUT | `/api/schedules/:id` | Update schedule |
-| DELETE | `/api/schedules/:id` | Delete schedule |
-| POST | `/api/guest-access` | Create guest access |
-| GET | `/api/guest-access` | List guest access |
-
-### 5.2 MQTT Topics
-
-| Topic | Direction | Payload |
-|-------|-----------|---------|
-| `gatemate/{device_id}/command` | App → Device | `{"action": "open", "user_id": "..."}` |
-| `gatemate/{device_id}/status` | Device → App | `{"state": "open", "percentage": 100}` |
-| `gatemate/{device_id}/sensors` | Device → App | `{"current": 2.5, "temp": 32}` |
-| `gatemate/{device_id}/alert` | Device → App | `{"type": "obstruction", "severity": "warning"}` |
+| Method | Endpoint | UX Purpose | Caching Strategy |
+|--------|----------|------------|------------------|
+| GET | `/api/devices` | Dashboard Load | `stale-while-revalidate` |
+| POST | `/api/control` | Gate Action | No-Cache, Optimistic |
+| GET | `/api/logs` | History View | `max-age=60` |
 
 ---
 
-## 6. SECURITY IMPLEMENTATION
+## 6. OFFLINE CAPABILITY & PWA
 
-### 6.1 Authentication Layers
-
-```
-Layer 1: Firebase Authentication
-├── Email/Password
-├── Google OAuth
-├── Apple Sign-In
-└── Phone (SMS OTP)
-
-Layer 2: App-level Security
-├── Biometric (Face ID/Fingerprint)
-├── PIN Code
-└── Session Management
-
-Layer 3: Device Security
-├── MQTT TLS Encryption
-├── Device Certificate
-└── Command Signing
-```
-
-### 6.2 Encryption Standards
-
-| Data Type | Encryption | Key Management |
-|-----------|------------|----------------|
-| Auth Tokens | JWT/RS256 | Firebase |
-| API Calls | HTTPS TLS 1.3 | Auto-managed |
-| MQTT Messages | TLS + AES-256 | Device cert |
-| Stored Data | AES-256-GCM | Supabase Vault |
-
----
-
-## 7. OFFLINE CAPABILITY
-
-### 7.1 PWA Service Worker
+### 6.1 Service Worker Strategy
 
 ```javascript
-// Caching Strategy
-const CACHE_STRATEGIES = {
-    'api/devices': 'stale-while-revalidate',
-    'api/schedules': 'cache-first',
-    'assets/*': 'cache-first',
-    'fonts/*': 'cache-first'
+// Reliable First
+const STRATEGIES = {
+    'api/control': 'network-only', // Command must go through
+    'api/status': 'network-first', // Try fresh, fall back to cache
+    'assets': 'cache-first'        // Instant load
 };
 
-// Offline Queue
-const offlineQueue = {
-    commands: [],
-    
-    add(command) {
-        this.commands.push({
-            ...command,
-            timestamp: Date.now(),
-            synced: false
-        });
-    },
-    
-    async sync() {
-        const unsynced = this.commands.filter(c => !c.synced);
-        for (const cmd of unsynced) {
-            await sendCommand(cmd);
-            cmd.synced = true;
-        }
-    }
-};
-```
-
-### 7.2 Local Control Fallback
-
-```
-┌─────────────────────────────────────────┐
-│           OFFLINE MODE                  │
-├─────────────────────────────────────────┤
-│  1. Bluetooth LE Direct Control         │
-│     └─ Range: ~30 meters                │
-│                                         │
-│  2. Local WiFi (without internet)       │
-│     └─ ESP32 acts as AP                 │
-│                                         │
-│  3. Physical Button Fallback            │
-│     └─ Always available                 │
-└─────────────────────────────────────────┘
+// Background Sync
+if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(sw => {
+        return sw.sync.register('sync-commands');
+    });
+}
 ```
 
 ---
 
-## 8. MONITORING & MAINTENANCE
+## 7. UX-DRIVEN ARCHITECTURE MAPPING
 
-### 8.1 Health Metrics
+Bagian ini memetakan **9 Kriteria Perfect UI/UX** ke modul teknis spesifik:
 
-| Metric | Normal Range | Alert Threshold |
-|--------|--------------|-----------------|
-| Motor Current | 1-5A | >8A |
-| Temperature | 20-45°C | >60°C |
-| WiFi Signal | -40 to -70 dBm | < -80 dBm |
-| Response Time | <500ms | >2000ms |
-| Battery Level | 50-100% | <20% |
+### 1. Adaptif & Kompatibel
+- **Tech:** React Responsive + Tailwind Grid System.
+- **Architect:** Layout engine terpisah untuk Mobile (Card View) & Desktop (Table View).
 
-### 8.2 Predictive Maintenance
+### 2. UI Elements Intuitif
+- **Tech:** `framer-motion` untuk micro-interactions (layout transitions).
+- **Architect:** Global State Store (Zustand) untuk sinkronisasi status UI instan.
 
-```javascript
-const maintenancePredictor = {
-    checkMotorHealth(runtime, cycles) {
-        if (runtime > 2000) return { urgency: 'high', message: 'Motor service due' };
-        if (cycles > 50000) return { urgency: 'medium', message: 'Check bearings' };
-        return { urgency: 'low', message: 'Normal operation' };
-    },
-    
-    checkSensorHealth(readings) {
-        const variance = calculateVariance(readings);
-        if (variance > THRESHOLD) {
-            return { urgency: 'medium', message: 'Sensor calibration needed' };
-        }
-        return { urgency: 'low', message: 'Sensors OK' };
-    }
-};
-```
+### 3. Performa Cepat
+- **Tech:** Vite Code Splitting, WebP Assets, Edge Caching (Vercel).
+- **Architect:** Optimistic UI updates (update tampilan sebelum konfirmasi server).
+
+### 4. Konten Jelas
+- **Tech:** Google Fonts Preconnect (Inter), Dynamic Localization support.
+- **Architect:** CMS-less hardcoded microcopy untuk kecepatan render.
+
+### 5. Aksesibilitas
+- **Tech:** `@radix-ui/react-accessible-icon`, Semantic HTML5.
+- **Architect:** Color contrast monitoring di CI/CD pipeline.
+
+### 6. Personalisasi
+- **Tech:** `localStorage` persistence untuk user preferences (Dark mode, Sound).
+- **Architect:** User Profile Service di Supabase.
+
+### 7. Keamanan & Kepercayaan
+- **Tech:** WebAuthn (Biometric), JWT Rotation.
+- **Architect:** RLS (Row Level Security) di level database, bukan hanya aplikasi.
+
+### 8. Pengujian & Iterasi
+- **Tech:** MS Clarity recording, Sentry Error Tracking.
+- **Architect:** Feature Flags (Remote Config) untuk A/B testing live.
+
+### 9. Integrasi Teknologi Terkini
+- **Tech:** Web Speech API (Voice Control), Vibration API (Haptics).
+- **Architect:** Modular AI service (bisa plug-and-play model prediksi masa depan).
 
 ---
 
-## 9. DEPLOYMENT ARCHITECTURE
+## 8. DEPLOYMENT & ROADMAP
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -447,33 +281,14 @@ const maintenancePredictor = {
 │                                                                         │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                │
 │  │   Vercel    │    │  Supabase   │    │  Firebase   │                │
-│  │   (PWA)     │    │  (Database  │    │  (Auth)     │                │
-│  │             │    │   + Edge)   │    │             │                │
+│  │   (PWA)     │    │   (Data)    │    │   (Auth)    │                │
 │  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘                │
 │         │                  │                  │                        │
 │         └──────────────────┼──────────────────┘                        │
 │                            │                                           │
 │                    ┌───────▼───────┐                                   │
-│                    │   HiveMQ      │                                   │
-│                    │ (MQTT Cloud)  │                                   │
-│                    └───────┬───────┘                                   │
-│                            │                                           │
-│                    ┌───────▼───────┐                                   │
-│                    │  ESP32 Devices │                                  │
-│                    │  (Field)       │                                  │
+│                    │  ESP32 Fleet  │                                   │
+│                    │  (MQTT/TLS)   │                                   │
 │                    └────────────────┘                                  │
-│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## 10. ROADMAP
-
-| Phase | Timeline | Features |
-|-------|----------|----------|
-| **v1.0** | Current | Basic control, PWA, Firebase Auth |
-| **v2.0** | Q2 2026 | Supabase integration, Guest access, Schedules |
-| **v3.0** | Q3 2026 | Multi-property, Analytics dashboard |
-| **v4.0** | Q4 2026 | AI anomaly detection, Voice control |
-| **v5.0** | Q1 2027 | Smart city integration, Fleet management |
