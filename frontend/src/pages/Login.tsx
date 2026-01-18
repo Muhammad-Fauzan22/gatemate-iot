@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useToast } from '@/components/ui'
 
 export default function Login() {
     const [email, setEmail] = useState('')
@@ -13,6 +14,7 @@ export default function Login() {
 
     const navigate = useNavigate()
     const { login } = useAuthStore()
+    const { showToast } = useToast()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -21,9 +23,11 @@ export default function Login() {
 
         try {
             await login(email, password)
+            showToast('success', 'Welcome back!')
             navigate('/dashboard', { replace: true })
         } catch {
             setError('Invalid email or password')
+            showToast('error', 'Login failed. Please check your credentials.')
         } finally {
             setIsLoading(false)
         }
@@ -32,7 +36,7 @@ export default function Login() {
     return (
         <div className="font-display antialiased text-gray-900 dark:text-white bg-background-light dark:bg-background-dark min-h-screen flex flex-col items-center justify-center p-4">
             {/* Mobile Container */}
-            <div className="w-full max-w-md bg-surface-light dark:bg-surface-dark rounded-xl shadow-soft dark:shadow-none overflow-hidden border border-border-light dark:border-border-dark relative">
+            <div className="w-full max-w-md bg-surface-light dark:bg-surface-dark rounded-xl shadow-soft dark:shadow-none overflow-hidden border border-border-light dark:border-border-dark relative animate-scale-in">
                 {/* Background Pattern/Decoration */}
                 <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
 
@@ -53,8 +57,8 @@ export default function Login() {
                         <button
                             onClick={() => setIsRegister(false)}
                             className={`flex-1 py-2 text-sm font-medium text-center rounded-md transition-all ${!isRegister
-                                    ? 'bg-white dark:bg-background-dark shadow-sm text-primary'
-                                    : 'text-text-secondary-light dark:text-text-secondary-dark hover:text-gray-900 dark:hover:text-white'
+                                ? 'bg-white dark:bg-background-dark shadow-sm text-primary'
+                                : 'text-text-secondary-light dark:text-text-secondary-dark hover:text-gray-900 dark:hover:text-white'
                                 }`}
                         >
                             Login
@@ -62,8 +66,8 @@ export default function Login() {
                         <button
                             onClick={() => setIsRegister(true)}
                             className={`flex-1 py-2 text-sm font-medium text-center rounded-md transition-all ${isRegister
-                                    ? 'bg-white dark:bg-background-dark shadow-sm text-primary'
-                                    : 'text-text-secondary-light dark:text-text-secondary-dark hover:text-gray-900 dark:hover:text-white'
+                                ? 'bg-white dark:bg-background-dark shadow-sm text-primary'
+                                : 'text-text-secondary-light dark:text-text-secondary-dark hover:text-gray-900 dark:hover:text-white'
                                 }`}
                         >
                             Register

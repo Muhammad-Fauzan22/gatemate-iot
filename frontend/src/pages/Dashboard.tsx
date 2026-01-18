@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useGateStore } from '@/stores/gateStore'
+import { useToast } from '@/components/ui'
 
 const activityLogs = [
     { id: 1, icon: 'lock', title: 'Gate Closed', time: '08:30 AM', detail: 'Automated timer', color: 'text-gray-400' },
@@ -11,20 +12,30 @@ const activityLogs = [
 export default function Dashboard() {
     const { user } = useAuthStore()
     const { gates, openGate, closeGate, stopGate } = useGateStore()
+    const { showToast } = useToast()
     const mainGate = gates[0]
 
     const handleQuickAction = async (action: 'open' | 'close' | 'stop') => {
         if (!mainGate) return
-        switch (action) {
-            case 'open':
-                await openGate(mainGate.id)
-                break
-            case 'close':
-                await closeGate(mainGate.id)
-                break
-            case 'stop':
-                await stopGate(mainGate.id)
-                break
+        try {
+            switch (action) {
+                case 'open':
+                    showToast('info', 'Opening gate...')
+                    await openGate(mainGate.id)
+                    showToast('success', 'Gate opened successfully!')
+                    break
+                case 'close':
+                    showToast('info', 'Closing gate...')
+                    await closeGate(mainGate.id)
+                    showToast('success', 'Gate closed successfully!')
+                    break
+                case 'stop':
+                    await stopGate(mainGate.id)
+                    showToast('warning', 'Gate stopped!')
+                    break
+            }
+        } catch {
+            showToast('error', 'Action failed. Please try again.')
         }
     }
 
@@ -78,8 +89,8 @@ export default function Dashboard() {
                                         <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-1">System Status</p>
                                         <div className="flex items-center gap-2">
                                             <div className={`h-3 w-3 rounded-full ${mainGate?.status === 'open' ? 'bg-primary' :
-                                                    mainGate?.status === 'closed' ? 'bg-gray-500' :
-                                                        'bg-warning animate-pulse'
+                                                mainGate?.status === 'closed' ? 'bg-gray-500' :
+                                                    'bg-warning animate-pulse'
                                                 }`} />
                                             <h2 className="text-2xl font-bold text-gray-200">{getStatusText()}</h2>
                                         </div>
