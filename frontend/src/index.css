@@ -6,34 +6,34 @@
   --color-primary: #4bbe4f;
   --color-primary-hover: #3da140;
   --color-primary-light: rgba(75, 190, 79, 0.1);
-  
+
   --color-background-light: #f6f8f6;
   --color-background-dark: #121212;
-  
+
   --color-surface-dark: #1e1e1e;
   --color-surface-light: #ffffff;
   --color-surface-highlight: #2a2a2a;
-  
+
   --color-border-dark: #414e41;
   --color-border-light: #e5e7eb;
-  
+
   --color-text-secondary-dark: #a3b2a4;
   --color-text-secondary-light: #6b7280;
-  
+
   --color-danger: #ef4444;
   --color-warning: #f97316;
   --color-success: #22c55e;
   --color-info: #3b82f6;
-  
+
   /* Fonts */
   --font-display: "Inter", system-ui, sans-serif;
-  
+
   /* Border Radius */
   --radius-DEFAULT: 0.5rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
   --radius-2xl: 2rem;
-  
+
   /* Shadows */
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
   --shadow-glow: 0 0 15px rgba(75, 190, 79, 0.3);
@@ -74,8 +74,17 @@ body {
 
 /* Animations */
 @keyframes subtle-pulse {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
+
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 .animate-glow {
@@ -83,8 +92,15 @@ body {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .animate-float {
@@ -111,7 +127,7 @@ input[type=range]::-webkit-slider-thumb {
   border: 4px solid var(--color-primary);
   cursor: pointer;
   margin-top: -12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 input[type=range]::-webkit-slider-runnable-track {
@@ -125,12 +141,12 @@ input[type=range]::-webkit-slider-runnable-track {
 /* Joystick Styles */
 .joystick-base {
   background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
-  box-shadow: inset 2px 2px 5px rgba(255,255,255,0.05), inset -5px -5px 10px rgba(0,0,0,0.5);
+  box-shadow: inset 2px 2px 5px rgba(255, 255, 255, 0.05), inset -5px -5px 10px rgba(0, 0, 0, 0.5);
 }
 
 .joystick-stick {
   background: radial-gradient(circle at 30% 30%, var(--color-primary), #2e8b32);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 2px 2px 5px rgba(255,255,255,0.3);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), inset 2px 2px 5px rgba(255, 255, 255, 0.3);
 }
 
 /* Toggle Switch */
@@ -139,6 +155,49 @@ input[type=range]::-webkit-slider-runnable-track {
   border-color: var(--color-primary);
 }
 
-.toggle-checkbox:checked + .toggle-label {
+.toggle-checkbox:checked+.toggle-label {
   background-color: var(--color-primary);
+}
+
+/* Shimmer Animation for Skeleton */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Slide-in Animation for Toast */
+@keyframes slide-in-from-right-full {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+.slide-in-from-right-full {
+  animation-name: slide-in-from-right-full;
 }
