@@ -290,3 +290,91 @@ input[type=range]::-webkit-slider-runnable-track {
     animation: none;
   }
 }
+
+/* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+
+/* Custom Focus Rings - WCAG 2.1 Compliant */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to Content Link */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 8px 8px;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== TOUCH & HAPTIC FEEDBACK ===== */
+
+/* Touch Feedback for Mobile */
+.touch-feedback {
+  -webkit-tap-highlight-color: rgba(75, 190, 79, 0.2);
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Button Press Effect */
+.btn-press:active {
+  transform: scale(0.95);
+  transition: transform 0.05s ease;
+}
+
+/* ===== EMPTY STATE STYLES ===== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-description {
+  color: var(--color-text-secondary-dark);
+  font-size: 0.875rem;
+  max-width: 280px;
+}

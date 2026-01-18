@@ -6,3 +6,5 @@ export { default as Icon, Icons } from './Icon'
 export { default as Badge } from './Badge'
 export { default as ToastProvider, useToast } from './Toast'
 export { default as Skeleton, SkeletonCard, SkeletonList, SkeletonDashboard } from './Skeleton'
+export { default as EmptyState } from './EmptyState'
+

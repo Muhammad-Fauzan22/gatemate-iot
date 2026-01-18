@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useGateStore } from '@/stores/gateStore'
 import { useToast } from '@/components/ui'
+import { useHaptic } from '@/hooks'
 
 const activityLogs = [
     { id: 1, icon: 'lock', title: 'Gate Closed', time: '08:30 AM', detail: 'Automated timer', color: 'text-gray-400' },
@@ -13,28 +14,37 @@ export default function Dashboard() {
     const { user } = useAuthStore()
     const { gates, openGate, closeGate, stopGate } = useGateStore()
     const { showToast } = useToast()
+    const { vibrate } = useHaptic()
     const mainGate = gates[0]
 
     const handleQuickAction = async (action: 'open' | 'close' | 'stop') => {
         if (!mainGate) return
+
+        // Haptic feedback on button press
+        vibrate('medium')
+
         try {
             switch (action) {
                 case 'open':
                     showToast('info', 'Opening gate...')
                     await openGate(mainGate.id)
+                    vibrate('success')
                     showToast('success', 'Gate opened successfully!')
                     break
                 case 'close':
                     showToast('info', 'Closing gate...')
                     await closeGate(mainGate.id)
+                    vibrate('success')
                     showToast('success', 'Gate closed successfully!')
                     break
                 case 'stop':
                     await stopGate(mainGate.id)
+                    vibrate('warning')
                     showToast('warning', 'Gate stopped!')
                     break
             }
         } catch {
+            vibrate('error')
             showToast('error', 'Action failed. Please try again.')
         }
     }
