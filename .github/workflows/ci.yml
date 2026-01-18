@@ -139,10 +139,13 @@ jobs:
 
   # ============================================================================
   # Mobile App Check
+  # NOTE: Mobile is currently a git submodule - CI skipped until properly configured
   # ============================================================================
   mobile:
     name: Mobile CI
     runs-on: ubuntu-latest
+    # Skip until mobile submodule is properly configured
+    if: false
 
     steps:
       - name: Checkout code

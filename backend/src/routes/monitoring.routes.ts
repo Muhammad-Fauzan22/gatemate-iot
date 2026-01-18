@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { Router, Request, Response } from 'express';
-import { healthService, getPrometheusMetrics, metricsStore } from '../services/health.service.js';
+import { healthService, getPrometheusMetrics } from '../services/health.service.js';
 
 const router = Router();
 

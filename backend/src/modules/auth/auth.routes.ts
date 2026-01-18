@@ -2,13 +2,12 @@
 // GATEMATE Backend - Auth Routes with Validation
 // =============================================================================
 
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import {
     validate,
     asyncHandler,
-    ValidationError,
 } from '../../middleware/error.middleware.js';
 import {
     registerSchema,
