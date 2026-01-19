@@ -187,7 +187,7 @@ gatemate-iot/
 
 **Nama:** Muhammad Fauzan  
 **NIM:** XXXXXXXXXX  
-**Program Studi:** Teknik Informatika  
+**Program Studi:** Teknik Mesin 
 **Email:** muhammad.fauzan@email.com  
 **GitHub:** https://github.com/Muhammad-Fauzan22
 
