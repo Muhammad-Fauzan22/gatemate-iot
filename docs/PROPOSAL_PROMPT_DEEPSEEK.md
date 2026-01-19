@@ -1,5 +1,4 @@
-
-## INFORMASI PROYEK
+## INFORMASI PROYEK
 
 ### Nama Proyek
 **GATEMATE - Smart IoT Gate Control System**
