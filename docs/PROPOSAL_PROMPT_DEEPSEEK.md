@@ -1,11 +1,3 @@
-# PROMPT UNTUK DEEPSEEK
-## Pembuatan Proposal Proyek GATEMATE - Sistem Kontrol Gerbang Otomatis Berbasis IoT
-
----
-
-Buatkan proposal proyek pembuatan alat yang lengkap dan sempurna dengan struktur akademik untuk proyek berikut:
-
----
 
 ## INFORMASI PROYEK
 
