@@ -114,7 +114,7 @@ export const errorHandler: ErrorRequestHandler = (
         method: req.method,
         body: req.body,
         query: req.query,
-        user: (req as any).user?.userId,
+        user: (req as Request & { user?: { userId: string } }).user?.userId,
     });
 
     // Handle specific error types

@@ -4,6 +4,7 @@
 
 import swaggerJsdoc from 'swagger-jsdoc';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const options: any = {
     definition: {
         openapi: '3.0.0',

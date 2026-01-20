@@ -82,11 +82,11 @@ export function setupWebSocket(io: SocketIOServer) {
 }
 
 // Utility function to broadcast to specific device subscribers
-export function broadcastToDevice(io: SocketIOServer, deviceId: string, event: string, data: any) {
+export function broadcastToDevice(io: SocketIOServer, deviceId: string, event: string, data: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     io.to(`device:${deviceId}`).emit(event, data);
 }
 
 // Utility function to send notification to specific user
-export function notifyUser(io: SocketIOServer, userId: string, event: string, data: any) {
+export function notifyUser(io: SocketIOServer, userId: string, event: string, data: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     io.to(`user:${userId}`).emit(event, data);
 }

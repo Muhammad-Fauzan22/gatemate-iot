@@ -5,7 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware.js';
 import { validate, asyncHandler, NotFoundError, AuthorizationError, ValidationError } from '../../middleware/error.middleware.js';
 import { guestAccessSchema, idParamSchema, paginationSchema } from '../../utils/validation.js';
 import { auditLogger } from '../../middleware/logger.middleware.js';
@@ -13,13 +13,7 @@ import { auditLogger } from '../../middleware/logger.middleware.js';
 const router = Router();
 const prisma = new PrismaClient();
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
-function generateAccessCode(): string {
-    return crypto.randomBytes(16).toString('hex');
-}
 
 function generateQRData(code: string): string {
     const baseUrl = process.env.GUEST_ACCESS_URL || 'https://gatemate.io/guest';
@@ -38,8 +32,8 @@ router.get('/',
     authMiddleware,
     validate({ query: paginationSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
-        const { page = 1, limit = 20 } = req.query as any;
+        const userId = (req as AuthRequest).user!.userId;
+        const { page = 1, limit = 20 } = req.query as unknown as { page: number, limit: number };
 
         const skip = (page - 1) * limit;
 
@@ -107,7 +101,7 @@ router.post('/',
     authMiddleware,
     validate({ body: guestAccessSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { deviceId, name, expiresAt, maxUses, permissions } = req.body;
 
         // Verify device ownership
@@ -170,7 +164,7 @@ router.delete('/:id',
     authMiddleware,
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         const existing = await prisma.guestPass.findFirst({

@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware.js';
 import {
     validate,
     asyncHandler,
@@ -126,7 +126,7 @@ router.post('/logout',
     authMiddleware,
     asyncHandler(async (req: Request, res: Response) => {
         const token = req.headers.authorization?.replace('Bearer ', '');
-        const userId = (req as any).user?.userId;
+        const userId = (req as AuthRequest).user?.userId;
 
         if (token) {
             await authService.logout(token);
@@ -154,7 +154,7 @@ router.post('/logout',
 router.get('/profile',
     authMiddleware,
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
 
         const profile = await authService.getProfile(userId);
 
@@ -173,7 +173,7 @@ router.put('/profile',
     authMiddleware,
     validate({ body: updateProfileSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { name, avatar } = req.body;
 
         const profile = await authService.updateProfile(userId, { name, avatar });
@@ -201,7 +201,7 @@ router.post('/change-password',
     authMiddleware,
     validate({ body: changePasswordSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { currentPassword, newPassword } = req.body;
 
         try {
@@ -257,7 +257,7 @@ router.get('/sessions',
 router.delete('/sessions/:sessionId',
     authMiddleware,
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { sessionId } = req.params;
 
         // TODO: Implement session revocation

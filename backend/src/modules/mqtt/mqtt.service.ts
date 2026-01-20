@@ -73,7 +73,23 @@ async function handleMQTTMessage(topic: string, payload: Buffer) {
     }
 }
 
-async function handleStatusUpdate(deviceId: string, status: any) {
+interface DeviceStatus {
+    online: boolean;
+    state: string;
+    percentage: number;
+    obstacle: boolean;
+}
+
+interface SensorData {
+    current: number;
+    voltage: number;
+    temperature: number;
+    wifiSignal: number;
+    percentage: number;
+    state: string;
+}
+
+async function handleStatusUpdate(deviceId: string, status: DeviceStatus) {
     // Update device status in database
     await prisma.device.updateMany({
         where: { deviceId },
@@ -96,7 +112,7 @@ async function handleStatusUpdate(deviceId: string, status: any) {
     }
 }
 
-async function handleSensorData(deviceId: string, sensors: any) {
+async function handleSensorData(deviceId: string, sensors: SensorData) {
     // Store sensor data
     const device = await prisma.device.findFirst({
         where: { deviceId },

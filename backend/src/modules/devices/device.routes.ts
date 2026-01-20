@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware.js';
 import { validate, asyncHandler, NotFoundError } from '../../middleware/error.middleware.js';
 import {
     createDeviceSchema,
@@ -33,8 +33,8 @@ router.use(authMiddleware);
 router.get('/',
     validate({ query: paginationSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
-        const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query as any;
+        const userId = (req as AuthRequest).user!.userId;
+        const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query as unknown as { page: number, limit: number, sortBy: string, sortOrder: string };
 
         const skip = (page - 1) * limit;
 
@@ -93,7 +93,7 @@ router.get('/',
 router.get('/:id',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         const device = await prisma.device.findFirst({
@@ -138,7 +138,7 @@ router.get('/:id',
 router.post('/',
     validate({ body: createDeviceSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { name, type, ip, macAddress } = req.body;
 
         const device = await prisma.device.create({
@@ -186,7 +186,7 @@ router.post('/',
 router.put('/:id',
     validate({ params: idParamSchema, body: updateDeviceSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         // Check ownership
@@ -240,7 +240,7 @@ router.put('/:id',
 router.delete('/:id',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         // Check ownership
@@ -286,7 +286,7 @@ router.delete('/:id',
 router.post('/:id/command',
     validate({ params: idParamSchema, body: deviceCommandSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
         const { command, duration } = req.body;
 
@@ -347,7 +347,7 @@ router.post('/:id/command',
 router.get('/:id/status',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         const device = await prisma.device.findFirst({
@@ -390,9 +390,9 @@ router.get('/:id/status',
 router.get('/:id/logs',
     validate({ params: idParamSchema, query: paginationSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
-        const { page = 1, limit = 20 } = req.query as any;
+        const { page = 1, limit = 20 } = req.query as unknown as { page: number, limit: number };
 
         // Check ownership
         const device = await prisma.device.findFirst({

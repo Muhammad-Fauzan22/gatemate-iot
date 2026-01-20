@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware.js';
 import { validate, asyncHandler, NotFoundError, AuthorizationError } from '../../middleware/error.middleware.js';
 import {
     createScheduleSchema,
@@ -31,8 +31,8 @@ router.use(authMiddleware);
 router.get('/',
     validate({ query: paginationSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
-        const { page = 1, limit = 50, sortBy = 'time', sortOrder = 'asc' } = req.query as any;
+        const userId = (req as AuthRequest).user!.userId;
+        const { page = 1, limit = 50, sortBy = 'time', sortOrder = 'asc' } = req.query as unknown as { page: number, limit: number, sortBy: string, sortOrder: string };
 
         const skip = (page - 1) * limit;
 
@@ -84,7 +84,7 @@ router.get('/',
 router.get('/:id',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         const schedule = await prisma.schedule.findFirst({
@@ -124,7 +124,7 @@ router.get('/:id',
 router.post('/',
     validate({ body: createScheduleSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { name, deviceId, action, time, days, enabled } = req.body;
 
         // Verify device ownership
@@ -186,7 +186,7 @@ router.post('/',
 router.put('/:id',
     validate({ params: idParamSchema, body: updateScheduleSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
         const { name, action, time, days, enabled } = req.body;
 
@@ -249,7 +249,7 @@ router.put('/:id',
 router.delete('/:id',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         // Check ownership
@@ -289,7 +289,7 @@ router.delete('/:id',
 router.patch('/:id/toggle',
     validate({ params: idParamSchema }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { id } = req.params;
 
         // Check ownership
@@ -334,9 +334,10 @@ router.patch('/:id/toggle',
  * Get all schedules for a specific device
  */
 router.get('/device/:deviceId',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     validate({ params: { deviceId: idParamSchema.shape.id } as any }),
     asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user.userId;
+        const userId = (req as AuthRequest).user!.userId;
         const { deviceId } = req.params;
 
         // Verify device ownership

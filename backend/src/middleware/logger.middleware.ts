@@ -57,7 +57,7 @@ export const logger = {
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
     // Generate unique request ID
     const requestId = uuidv4();
-    (req as any).requestId = requestId;
+    (req as Request & { requestId: string }).requestId = requestId;
     res.setHeader('X-Request-Id', requestId);
 
     const startTime = Date.now();
